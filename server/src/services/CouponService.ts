@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import QRCode from 'qrcode';
 import { getCouponForSession, insertCoupon } from '../storage/database.js';
 import { CouponRow } from '../types/index.js';
 
@@ -24,9 +25,20 @@ export class CouponService {
     throw new Error('Could not create coupon');
   }
 
-  private createCode(): string {
+  createCode(): string {
     const bytes = crypto.randomBytes(6);
     const suffix = Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('');
     return `FQ-${suffix}`;
+  }
+
+  async generateQrDataUri(code: string): Promise<string> {
+    return QRCode.toDataURL(code, {
+      width: 200,
+      margin: 2,
+      color: {
+        dark: '#173320',
+        light: '#ffffff',
+      },
+    });
   }
 }
