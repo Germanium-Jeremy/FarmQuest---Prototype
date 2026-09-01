@@ -1,1 +1,1 @@
-process.loadEnvFile?.('server/.env');
+process.loadEnvFile?.(".env");
