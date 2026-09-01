@@ -1,11 +1,14 @@
 import * as THREE from 'three';
+import { CollisionManager } from './CollisionManager';
 
 export class World {
   public group: THREE.Group;
   public bounds = { minX: -20, maxX: 20, minZ: -20, maxZ: 20 };
+  public collision: CollisionManager;
 
   constructor() {
     this.group = new THREE.Group();
+    this.collision = new CollisionManager(this.group);
     this.buildTerrain();
     this.buildRoad();
     this.buildFarm();
@@ -87,6 +90,7 @@ export class World {
         post.castShadow = true;
         this.group.add(post);
       }
+      this.collision.addBox(`farm-fence-${x}`, new THREE.Vector3(x, 0.55, -2), new THREE.Vector3(0.32, 1.1, 8.4));
       const rail1 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 8.2), fenceMat);
       rail1.position.set(x, 0.45, -2);
       this.group.add(rail1);
@@ -161,6 +165,7 @@ export class World {
 
     tree.position.copy(pos);
     this.group.add(tree);
+    this.collision.addBox(`tree-${pos.x}-${pos.z}`, new THREE.Vector3(pos.x, 0.8, pos.z), new THREE.Vector3(0.72, 1.6, 0.72));
   }
 
   private buildRiver(): void {
@@ -232,6 +237,7 @@ export class World {
 
     building.position.copy(pos);
     this.group.add(building);
+    this.collision.addBox(`building-${pos.x}-${pos.z}`, new THREE.Vector3(pos.x, h / 2, pos.z), new THREE.Vector3(w + 0.25, h, d + 0.25));
   }
 
   private buildDecorations(): void {
@@ -251,6 +257,7 @@ export class World {
       hay.position.y += 0.3;
       hay.castShadow = true;
       this.group.add(hay);
+      this.collision.addBox(`hay-${pos.x}-${pos.z}`, new THREE.Vector3(pos.x, 0.42, pos.z), new THREE.Vector3(0.8, 0.85, 0.8));
     }
 
     // Flower patches
@@ -291,6 +298,7 @@ export class World {
       rock.position.y = 0.15;
       rock.castShadow = true;
       this.group.add(rock);
+      this.collision.addBox(`rock-${pos.x}-${pos.z}`, new THREE.Vector3(pos.x, 0.35, pos.z), new THREE.Vector3(0.8, 0.7, 0.8));
     }
   }
 }

@@ -1,56 +1,74 @@
-import { Challenge } from './GameState';
+import { CropType } from '../data/CropType';
+import { TaskType } from '../data/TaskType';
+import { ChallengeGenerator } from './ChallengeGenerator';
+import { GameTask } from './GameTask';
 import { ScoreManager } from './ScoreManager';
 
-export interface ChallengeConfig {
-  challenge: Challenge;
-  taskText: string;
-  timeLimit: number;
-  reward: number;
-}
-
-const CHALLENGES: ChallengeConfig[] = [
-  { challenge: Challenge.FIND_SEED, taskText: 'FIND SEEDS', timeLimit: 30, reward: 100 },
-  { challenge: Challenge.FIND_WATER, taskText: 'FIND WATER', timeLimit: 20, reward: 100 },
-  { challenge: Challenge.HARVEST, taskText: 'HARVEST YOUR CROP', timeLimit: 30, reward: 150 },
-];
+const matchingTypes = (expected: TaskType, actual: TaskType) => {
+  if (expected === actual) return true;
+  if (expected === TaskType.COLLECT_MULTIPLE_SEEDS && actual === TaskType.COLLECT_SEED) return true;
+  if (expected === TaskType.PLANT_MULTIPLE_SEEDS && actual === TaskType.PLANT_SEED) return true;
+  if (expected === TaskType.WATER_CROP_MULTIPLE && actual === TaskType.WATER_CROP) return true;
+  if (expected === TaskType.HARVEST_MULTIPLE && actual === TaskType.HARVEST_CROP) return true;
+  return false;
+};
 
 export class ChallengeManager {
+  private tasks: GameTask[] = [];
   private currentIndex = 0;
   private timeRemaining = 0;
   private active = false;
+  private paused = false;
+  private generator = new ChallengeGenerator();
   private onTimeout: (() => void) | null = null;
   private onUpdate: (() => void) | null = null;
   private onComplete: (() => void) | null = null;
+  private onFeedback: ((message: string) => void) | null = null;
+  private onTaskStarted: ((task: GameTask, isFirstTask: boolean) => void) | null = null;
+  private onTaskCompleted: ((completedTask: GameTask, nextTask: GameTask | null) => void) | null = null;
 
   constructor(private scoreManager: ScoreManager) {}
 
-  start(onTimeout: () => void, onUpdate: () => void, onComplete: () => void): void {
+  start(
+    levelNumber: number,
+    onTimeout: () => void,
+    onUpdate: () => void,
+    onComplete: () => void,
+    onFeedback: (message: string) => void,
+    onTaskStarted?: (task: GameTask, isFirstTask: boolean) => void,
+    onTaskCompleted?: (completedTask: GameTask, nextTask: GameTask | null) => void,
+  ): GameTask[] {
+    this.tasks = this.generator.generate(levelNumber);
     this.currentIndex = 0;
     this.onTimeout = onTimeout;
     this.onUpdate = onUpdate;
     this.onComplete = onComplete;
-    this.startChallenge();
+    this.onFeedback = onFeedback;
+    this.onTaskStarted = onTaskStarted ?? null;
+    this.onTaskCompleted = onTaskCompleted ?? null;
+    this.startCurrentTask();
+    return this.tasks.map((task) => ({ ...task }));
   }
 
-  private startChallenge(): void {
-    const config = this.currentConfig();
-    if (!config) {
-      this.active = false;
-      this.onComplete?.();
-      return;
-    }
-    this.timeRemaining = config.timeLimit;
-    this.active = true;
-    this.onUpdate?.();
+  getTasks(): GameTask[] {
+    return this.tasks.map((task) => ({ ...task }));
   }
 
-  currentConfig(): ChallengeConfig | null {
-    if (this.currentIndex >= CHALLENGES.length) return null;
-    return CHALLENGES[this.currentIndex];
+  getCurrentTask(): GameTask | null {
+    const task = this.tasks[this.currentIndex];
+    return task ? { ...task } : null;
   }
 
-  currentChallenge(): Challenge | null {
-    return this.currentConfig()?.challenge ?? null;
+  getCompletedTaskCount(): number {
+    return this.currentIndex;
+  }
+
+  getTaskCount(): number {
+    return this.tasks.length;
+  }
+
+  getCurrentTaskRaw(): GameTask | null {
+    return this.tasks[this.currentIndex] ?? null;
   }
 
   getTimeRemaining(): number {
@@ -61,22 +79,47 @@ export class ChallengeManager {
     return this.active;
   }
 
-  completeChallenge(): void {
-    const config = this.currentConfig();
-    if (config) {
-      this.scoreManager.add(config.reward);
+  setPaused(paused: boolean): void {
+    this.paused = paused;
+  }
+
+  registerProgress(type: TaskType, cropType?: CropType, amount = 1, feedback?: string): boolean {
+    const task = this.getCurrentTaskRaw();
+    if (!this.active || !task || !matchingTypes(task.type, type)) return false;
+    if (task.cropType && cropType && task.cropType !== cropType) return false;
+
+    task.currentAmount = Math.min(task.targetAmount, task.currentAmount + amount);
+    if (feedback) this.onFeedback?.(feedback);
+
+    if (task.currentAmount >= task.targetAmount) {
+      this.completeCurrentTask();
+    } else {
+      this.onUpdate?.();
     }
-    this.currentIndex++;
-    if (this.currentIndex >= CHALLENGES.length) {
+
+    return true;
+  }
+
+  completeCurrentTask(): void {
+    const task = this.getCurrentTaskRaw();
+    if (!task) return;
+
+    this.scoreManager.add(task.scoreReward);
+    const completedTask = { ...task };
+    this.currentIndex += 1;
+
+    if (this.currentIndex >= this.tasks.length) {
       this.active = false;
+      this.onTaskCompleted?.(completedTask, null);
       this.onComplete?.();
     } else {
-      this.startChallenge();
+      this.startCurrentTask();
+      this.onTaskCompleted?.(completedTask, this.getCurrentTask());
     }
   }
 
   update(delta: number): void {
-    if (!this.active) return;
+    if (!this.active || this.paused) return;
     this.timeRemaining -= delta;
     this.onUpdate?.();
     if (this.timeRemaining <= 0) {
@@ -86,8 +129,23 @@ export class ChallengeManager {
   }
 
   reset(): void {
+    this.tasks = [];
     this.currentIndex = 0;
     this.timeRemaining = 0;
     this.active = false;
+  }
+
+  private startCurrentTask(): void {
+    const task = this.getCurrentTaskRaw();
+    if (!task) {
+      this.active = false;
+      this.onComplete?.();
+      return;
+    }
+    this.timeRemaining = task.timeLimit;
+    this.active = true;
+    this.paused = false;
+    this.onUpdate?.();
+    this.onTaskStarted?.({ ...task }, this.currentIndex === 0);
   }
 }

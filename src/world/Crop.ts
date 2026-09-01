@@ -1,31 +1,36 @@
 import * as THREE from 'three';
+import { CROP_LABEL, CropType } from '../data/CropType';
 import { Interactable } from './Interactable';
 
 export class Crop implements Interactable {
   public mesh: THREE.Group;
-  public label = 'Harvest Crop';
+  public label = 'Plant Seed';
+  public cropType: CropType | null = null;
   private available = true;
   private planted = false;
-  private grown = false;
+  private harvestable = false;
   private onInteract: (() => void) | null = null;
   private cropMesh: THREE.Object3D | null = null;
+  private requiredWater = 1;
+  private waterCount = 0;
+  private soil: THREE.Mesh;
 
-  constructor(private position: THREE.Vector3) {
+  constructor(position: THREE.Vector3) {
     this.mesh = new THREE.Group();
 
-    // Soil patch
-    const soilGeom = new THREE.BoxGeometry(1.5, 0.1, 1.5);
-    const soilMat = new THREE.MeshLambertMaterial({ color: 0x8B6914 });
-    const soil = new THREE.Mesh(soilGeom, soilMat);
-    soil.position.y = 0.05;
-    soil.receiveShadow = true;
-    this.mesh.add(soil);
+    this.soil = new THREE.Mesh(
+      new THREE.BoxGeometry(1.5, 0.1, 1.5),
+      new THREE.MeshLambertMaterial({ color: 0x8B6914 }),
+    );
+    this.soil.position.y = 0.05;
+    this.soil.receiveShadow = true;
+    this.mesh.add(this.soil);
 
-    // Soil rows
     for (let i = -1; i <= 1; i++) {
-      const rowGeom = new THREE.BoxGeometry(1.2, 0.05, 0.1);
-      const rowMat = new THREE.MeshLambertMaterial({ color: 0x6B4914 });
-      const row = new THREE.Mesh(rowGeom, rowMat);
+      const row = new THREE.Mesh(
+        new THREE.BoxGeometry(1.2, 0.05, 0.1),
+        new THREE.MeshLambertMaterial({ color: 0x6B4914 }),
+      );
       row.position.set(0, 0.12, i * 0.4);
       this.mesh.add(row);
     }
@@ -37,84 +42,154 @@ export class Crop implements Interactable {
     this.onInteract = callback;
   }
 
-  plantCrop(): void {
-    if (this.planted) return;
+  plantCrop(cropType: CropType, requiredWater = 1): boolean {
+    if (this.planted) return false;
+    this.cropType = cropType;
     this.planted = true;
+    this.requiredWater = requiredWater;
+    this.waterCount = 0;
+    this.harvestable = false;
+    this.label = `Water ${CROP_LABEL[cropType]}`;
 
-    // Add crop sprouts
     this.cropMesh = new THREE.Group();
     for (let i = 0; i < 6; i++) {
-      const sproutGeom = new THREE.ConeGeometry(0.05, 0.15, 4);
-      const sproutMat = new THREE.MeshLambertMaterial({ color: 0x228B22 });
-      const sprout = new THREE.Mesh(sproutGeom, sproutMat);
-      sprout.position.set(
-        (Math.random() - 0.5) * 0.8,
-        0.2,
-        (Math.random() - 0.5) * 0.8
+      const sprout = new THREE.Mesh(
+        new THREE.ConeGeometry(0.05, 0.16, 4),
+        new THREE.MeshLambertMaterial({ color: 0x2f8f3a }),
       );
+      sprout.position.set((Math.random() - 0.5) * 0.8, 0.22, (Math.random() - 0.5) * 0.8);
       this.cropMesh.add(sprout);
     }
     this.mesh.add(this.cropMesh);
-
-    // Grow after a short delay
-    setTimeout(() => this.growCrop(), 1500);
+    return true;
   }
 
-  private growCrop(): void {
-    this.grown = true;
-    if (!this.cropMesh) return;
-
-    // Replace sprouts with full crops
-    this.mesh.remove(this.cropMesh);
-    this.cropMesh = new THREE.Group();
-
-    for (let i = 0; i < 8; i++) {
-      const stalkGeom = new THREE.CylinderGeometry(0.03, 0.04, 0.8, 4);
-      const stalkMat = new THREE.MeshLambertMaterial({ color: 0x228B22 });
-      const stalk = new THREE.Mesh(stalkGeom, stalkMat);
-      stalk.position.set(
-        (Math.random() - 0.5) * 1.0,
-        0.5,
-        (Math.random() - 0.5) * 1.0
-      );
-
-      // Corn head
-      const headGeom = new THREE.CylinderGeometry(0.06, 0.04, 0.15, 6);
-      const headMat = new THREE.MeshLambertMaterial({ color: 0xFFD700 });
-      const head = new THREE.Mesh(headGeom, headMat);
-      head.position.y = 0.45;
-      stalk.add(head);
-
-      this.cropMesh.add(stalk);
+  water(): boolean {
+    if (!this.planted || this.harvestable) return false;
+    this.waterCount += 1;
+    (this.soil.material as THREE.MeshLambertMaterial).color.setHex(0x5f421d);
+    this.mesh.scale.setScalar(1 + this.waterCount * 0.08);
+    if (this.waterCount >= this.requiredWater) {
+      this.growCrop();
     }
-    this.mesh.add(this.cropMesh);
+    return true;
+  }
+
+  harvest(): boolean {
+    if (!this.harvestable) return false;
+    this.available = false;
+    this.mesh.visible = false;
+    return true;
   }
 
   isReadyToPlant(): boolean {
-    return !this.planted;
+    return !this.planted && this.available;
+  }
+
+  isReadyToWater(): boolean {
+    return this.planted && !this.harvestable && this.available;
   }
 
   isReadyToHarvest(): boolean {
-    return this.planted && this.grown;
+    return this.harvestable && this.available;
   }
 
   interact(): void {
-    if (!this.available || !this.grown) return;
-    this.available = false;
+    if (!this.available) return;
     this.onInteract?.();
   }
 
   isAvailable(): boolean {
-    return this.available && this.grown;
+    return this.available;
   }
 
   reset(): void {
     this.available = true;
     this.planted = false;
-    this.grown = false;
+    this.harvestable = false;
+    this.cropType = null;
+    this.waterCount = 0;
+    this.requiredWater = 1;
+    this.label = 'Plant Seed';
+    this.mesh.visible = true;
+    this.mesh.scale.setScalar(1);
+    (this.soil.material as THREE.MeshLambertMaterial).color.setHex(0x8B6914);
     if (this.cropMesh) {
       this.mesh.remove(this.cropMesh);
       this.cropMesh = null;
     }
+  }
+
+  private growCrop(): void {
+    this.harvestable = true;
+    this.label = `Harvest ${this.cropType ? CROP_LABEL[this.cropType] : 'Crop'}`;
+    if (this.cropMesh) this.mesh.remove(this.cropMesh);
+
+    this.cropMesh = new THREE.Group();
+    for (let i = 0; i < 6; i++) {
+      const x = (Math.random() - 0.5) * 1.0;
+      const z = (Math.random() - 0.5) * 1.0;
+      if (this.cropType === CropType.CASSAVA) this.cropMesh.add(this.createCassavaPlant(x, z));
+      else if (this.cropType === CropType.COFFEE) this.cropMesh.add(this.createCoffeePlant(x, z));
+      else this.cropMesh.add(this.createMaizePlant(x, z));
+    }
+    this.mesh.add(this.cropMesh);
+  }
+
+  private createMaizePlant(x: number, z: number): THREE.Group {
+    const plant = new THREE.Group();
+    const stalk = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.035, 0.045, 0.9, 4),
+      new THREE.MeshLambertMaterial({ color: 0x268b3c }),
+    );
+    stalk.position.set(x, 0.55, z);
+    const head = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.04, 0.18, 6),
+      new THREE.MeshLambertMaterial({ color: 0xffd23f }),
+    );
+    head.position.y = 0.46;
+    stalk.add(head);
+    plant.add(stalk);
+    return plant;
+  }
+
+  private createCassavaPlant(x: number, z: number): THREE.Group {
+    const plant = new THREE.Group();
+    const stem = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.03, 0.04, 0.55, 5),
+      new THREE.MeshLambertMaterial({ color: 0x4f7d37 }),
+    );
+    stem.position.set(x, 0.36, z);
+    plant.add(stem);
+    for (let i = 0; i < 6; i++) {
+      const leaf = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.36, 0.02),
+        new THREE.MeshLambertMaterial({ color: 0x43a047 }),
+      );
+      leaf.position.set(x, 0.72, z);
+      leaf.rotation.y = (i / 6) * Math.PI * 2;
+      leaf.rotation.z = 0.65;
+      plant.add(leaf);
+    }
+    return plant;
+  }
+
+  private createCoffeePlant(x: number, z: number): THREE.Group {
+    const plant = new THREE.Group();
+    const stem = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.035, 0.045, 0.7, 5),
+      new THREE.MeshLambertMaterial({ color: 0x315c2d }),
+    );
+    stem.position.set(x, 0.42, z);
+    plant.add(stem);
+    for (let i = 0; i < 4; i++) {
+      const cherry = new THREE.Mesh(
+        new THREE.SphereGeometry(0.07, 6, 5),
+        new THREE.MeshLambertMaterial({ color: 0xc62828 }),
+      );
+      cherry.position.set(x + Math.cos(i) * 0.18, 0.75, z + Math.sin(i) * 0.18);
+      plant.add(cherry);
+    }
+    return plant;
   }
 }

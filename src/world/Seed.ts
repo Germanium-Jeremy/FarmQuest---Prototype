@@ -1,31 +1,47 @@
 import * as THREE from 'three';
+import { CROP_COLOR, CROP_LABEL, CropType } from '../data/CropType';
 import { Interactable } from './Interactable';
 
 export class Seed implements Interactable {
   public mesh: THREE.Group;
   public label: string;
+  public cropType: CropType;
   private available = true;
   private onInteract: (() => void) | null = null;
   private glowMesh: THREE.Mesh;
-  private floatOffset = 0;
 
-  constructor(position: THREE.Vector3, type: 'maize' | 'coffee' = 'maize') {
+  constructor(position: THREE.Vector3, cropType: CropType) {
+    this.cropType = cropType;
     this.mesh = new THREE.Group();
-    this.label = type === 'maize' ? 'Pick up Maize Seeds' : 'Discover Coffee Seeds';
+    this.label = `Collect ${CROP_LABEL[cropType]} ${cropType === CropType.COFFEE ? 'Bean' : 'Seed'}`;
 
-    // Seed packet - small box
-    const packetGeom = new THREE.BoxGeometry(0.3, 0.4, 0.15);
-    const packetColor = type === 'maize' ? 0xffd700 : 0x8B4513;
-    const packetMat = new THREE.MeshLambertMaterial({ color: packetColor });
+    const packetGeom = cropType === CropType.COFFEE
+      ? new THREE.SphereGeometry(0.18, 8, 6)
+      : new THREE.BoxGeometry(0.34, 0.42, 0.16);
+    const packetMat = new THREE.MeshLambertMaterial({ color: CROP_COLOR[cropType] });
     const packet = new THREE.Mesh(packetGeom, packetMat);
     packet.position.y = 0.8;
     packet.castShadow = true;
     this.mesh.add(packet);
 
-    // Glow ring
+    if (cropType === CropType.MAIZE) {
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.28, 5), new THREE.MeshLambertMaterial({ color: 0x2f8f3a }));
+      cap.position.y = 1.05;
+      this.mesh.add(cap);
+    }
+
+    if (cropType === CropType.CASSAVA) {
+      for (let i = 0; i < 5; i++) {
+        const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.28, 0.02), new THREE.MeshLambertMaterial({ color: 0x3e9a46 }));
+        leaf.position.y = 1.02;
+        leaf.rotation.z = (i - 2) * 0.35;
+        this.mesh.add(leaf);
+      }
+    }
+
     const glowGeom = new THREE.RingGeometry(0.4, 0.55, 16);
     const glowMat = new THREE.MeshBasicMaterial({
-      color: type === 'maize' ? 0xffff00 : 0xff6600,
+      color: CROP_COLOR[cropType],
       transparent: true,
       opacity: 0.5,
       side: THREE.DoubleSide,
@@ -35,16 +51,13 @@ export class Seed implements Interactable {
     this.glowMesh.position.y = 0.05;
     this.mesh.add(this.glowMesh);
 
-    // Particle-like small spheres around seed
-    const particleCount = 5;
-    for (let i = 0; i < particleCount; i++) {
-      const particleGeom = new THREE.SphereGeometry(0.04, 4, 4);
-      const particleMat = new THREE.MeshBasicMaterial({ color: type === 'maize' ? 0xffff00 : 0xff8800 });
-      const particle = new THREE.Mesh(particleGeom, particleMat);
-      const angle = (i / particleCount) * Math.PI * 2;
+    for (let i = 0; i < 5; i++) {
+      const particle = new THREE.Mesh(
+        new THREE.SphereGeometry(0.04, 4, 4),
+        new THREE.MeshBasicMaterial({ color: CROP_COLOR[cropType] }),
+      );
+      const angle = (i / 5) * Math.PI * 2;
       particle.position.set(Math.cos(angle) * 0.35, 0.8, Math.sin(angle) * 0.35);
-      particle.userData.angle = angle;
-      particle.userData.speed = 1.5 + Math.random() * 0.5;
       this.mesh.add(particle);
     }
 
@@ -73,10 +86,8 @@ export class Seed implements Interactable {
 
   update(time: number): void {
     if (!this.available) return;
-    // Float animation
     this.mesh.children[0].position.y = 0.8 + Math.sin(time * 2) * 0.15;
-    // Glow pulse
-    (this.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.3 + Math.sin(time * 3) * 0.2;
+    (this.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.35 + Math.sin(time * 3) * 0.15;
     this.glowMesh.rotation.z = time * 0.5;
   }
 }

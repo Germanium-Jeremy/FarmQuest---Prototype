@@ -3,11 +3,14 @@ import { Interactable } from './Interactable';
 
 export class WaterSource implements Interactable {
   public mesh: THREE.Group;
-  public label = 'Collect Water';
+  public label: string;
+  public sourceName: string;
   private available = true;
   private onInteract: (() => void) | null = null;
 
-  constructor(position: THREE.Vector3) {
+  constructor(position: THREE.Vector3, sourceName = 'Well') {
+    this.sourceName = sourceName;
+    this.label = `Use ${sourceName}`;
     this.mesh = new THREE.Group();
 
     // Well base - cylinder
@@ -67,7 +70,6 @@ export class WaterSource implements Interactable {
 
   interact(): void {
     if (!this.available) return;
-    this.available = false;
     this.onInteract?.();
   }
 
