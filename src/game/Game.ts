@@ -1,28 +1,13 @@
 import * as THREE from 'three';
-<<<<<<< HEAD
 import { FarmQuestApi, isValidEmail, PlayerSession } from '../api/FarmQuestApi';
-import { GameSocket, GameTask as SocketGameTask } from '../api/GameSocket';
+import { GameSocket } from '../api/GameSocket';
 import { CharacterType, CHARACTER_OPTIONS } from '../data/CharacterType';
 import { CROP_LABEL, CropType } from '../data/CropType';
-import { MapId, MAP_THEMES, MAP_OPTIONS } from '../data/MapTheme';
-=======
-import { AccountNotFoundError, FarmQuestApi, isValidEmail, PlayerSession } from '../api/FarmQuestApi';
-import { GameSocket, LeaderboardEntry, LobbyPlayer } from '../api/GameSocket';
-import { CROP_LABEL, CropType } from '../data/CropType';
-import { MAP_THEMES, MapId, MapTheme } from '../data/MapTheme';
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
+import { MapId, MAP_THEMES, MAP_OPTIONS, MapTheme } from '../data/MapTheme';
 import { TaskType } from '../data/TaskType';
 import { Player } from '../player/Player';
 import { PlayerController } from '../player/PlayerController';
-import { CharacterType } from '../player/PlayerModel';
 import { HUD } from '../ui/HUD';
-import { CharacterSelectScreen } from '../ui/screens/CharacterSelectScreen';
-import { CompleteScreen } from '../ui/screens/CompleteScreen';
-import { GameOverScreen } from '../ui/screens/GameOverScreen';
-import { LeaderboardScreen } from '../ui/screens/LeaderboardScreen';
-import { LobbyScreen } from '../ui/screens/LobbyScreen';
-import { LoginScreen, LoginMode } from '../ui/screens/LoginScreen';
-import { MapSelectScreen } from '../ui/screens/MapSelectScreen';
 import { Crop } from '../world/Crop';
 import { Interactable } from '../world/Interactable';
 import { NPC } from '../world/NPC';
@@ -30,11 +15,21 @@ import { Seed } from '../world/Seed';
 import { SpawnManager } from '../world/SpawnManager';
 import { WaterSource } from '../world/WaterSource';
 import { World } from '../world/World';
-import { ChallengeGenerator } from './ChallengeGenerator';
 import { ChallengeManager } from './ChallengeManager';
 import { GameState } from './GameState';
 import { GameTask } from './GameTask';
 import { ScoreManager } from './ScoreManager';
+
+interface SocketGameTask {
+  id: string;
+  type: string;
+  cropType?: string;
+  targetAmount: number;
+  currentAmount: number;
+  timeLimit: number;
+  scoreReward: number;
+  description: string;
+}
 
 export class Game {
   private renderer: THREE.WebGLRenderer;
@@ -42,29 +37,17 @@ export class Game {
   private camera: THREE.OrthographicCamera;
   private clock = new THREE.Clock();
   private hud: HUD;
-<<<<<<< HEAD
-  private player!: Player;
+  private player: Player;
   private playerController = new PlayerController();
-  private world!: World;
-  private npc!: NPC;
-=======
-  private player = new Player('male');
-  private playerController = new PlayerController();
-  private world = new World(MAP_THEMES.rwanda);
-  private npc = new NPC(new THREE.Vector3(-3, 0, 1.6), 'rwanda');
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
+  private world: World;
+  private npc: NPC;
   private scoreManager = new ScoreManager();
   private challengeManager = new ChallengeManager(this.scoreManager);
   private api = new FarmQuestApi();
   private socket = new GameSocket();
   private session: PlayerSession | null = null;
-<<<<<<< HEAD
-  private spawnManager!: SpawnManager;
+  private spawnManager: SpawnManager;
   private state: GameState = GameState.LOGIN;
-=======
-  private spawnManager = new SpawnManager('rwanda');
-  private state: GameState = GameState.MENU;
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
   private sessionGroup = new THREE.Group();
   private seeds: Seed[] = [];
   private crops: Crop[] = [];
@@ -74,22 +57,14 @@ export class Game {
   private plantQueue: CropType[] = [];
   private waterFound = false;
   private requiredWaterPerCrop = 1;
-<<<<<<< HEAD
-  private gameStartTime = 0;
-
-  // Event edition state
-  private selectedCharacterType: CharacterType = 'male';
-  private selectedMapId: MapId = 'rwanda';
-  private lobbyPlayerCount = 0;
-=======
-  private characterType: CharacterType = 'male';
-  private selectedMapId: MapId = 'rwanda';
-  private currentInstanceId = '';
   private gameStartTime = 0;
   private ambientLight!: THREE.AmbientLight;
   private sunLight!: THREE.DirectionalLight;
   private hemisphereLight!: THREE.HemisphereLight;
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
+
+  // Event edition state
+  private selectedCharacterType: CharacterType = 'male';
+  private selectedMapId: MapId = 'rwanda';
 
   constructor(canvas: HTMLCanvasElement, uiOverlay: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -114,7 +89,6 @@ export class Game {
     this.camera.position.set(12, 16, 18);
     this.camera.lookAt(0, 0, 0);
 
-<<<<<<< HEAD
     this.setupLighting();
 
     // Create default world and player
@@ -123,25 +97,11 @@ export class Game {
     this.player = new Player('male');
     this.spawnManager = new SpawnManager('rwanda');
 
-=======
-    this.hemiLight = this.setupLighting();
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
     this.scene.add(this.world.group, this.npc.mesh, this.player.mesh, this.sessionGroup);
     this.hud = new HUD(uiOverlay, this.scoreManager);
-    this.loginScreen = new LoginScreen(uiOverlay);
-    this.characterScreen = new CharacterSelectScreen(uiOverlay);
-    this.mapScreen = new MapSelectScreen(uiOverlay);
-    this.lobbyScreen = new LobbyScreen(uiOverlay);
-    this.gameOverScreen = new GameOverScreen(uiOverlay);
-    this.completeScreen = new CompleteScreen(uiOverlay);
-    this.leaderboardScreen = new LeaderboardScreen(uiOverlay);
 
-    this.bindSocket();
-    window.addEventListener('resize', () => this.onResize());
-<<<<<<< HEAD
-
-    // Setup WebSocket handlers
     this.setupSocketHandlers();
+    window.addEventListener('resize', () => this.onResize());
 
     // Start with login screen
     this.showLoginScreen();
@@ -150,10 +110,9 @@ export class Game {
   private setupSocketHandlers(): void {
     this.socket.on('lobby_update', (data) => {
       const msg = data as { count: number };
-      this.lobbyPlayerCount = msg.count;
       if (this.state === GameState.LOBBY) {
         this.hud.showLobby(
-          this.lobbyPlayerCount,
+          msg.count,
           this.session?.displayName ?? 'Player',
           this.selectedCharacterType,
           this.selectedMapId,
@@ -163,13 +122,12 @@ export class Game {
 
     this.socket.on('game_start', (data) => {
       const msg = data as { instanceId: string; tasks: SocketGameTask[] };
-      this.startGameWithTasks(msg.tasks);
+      this.startGameFromServer(msg.tasks);
     });
 
     this.socket.on('game_finished', (data) => {
       const msg = data as { leaderboard: Array<{ rank: number; displayName: string; score: number; completionTime: number }>; yourRank: number };
       this.state = GameState.LEADERBOARD;
-      const isTopTen = msg.yourRank <= 10;
       this.hud.showLeaderboard(
         msg.leaderboard.map((e) => ({
           rank: e.rank,
@@ -179,7 +137,7 @@ export class Game {
         })),
         msg.yourRank,
         this.scoreManager.getScore(),
-        isTopTen,
+        msg.yourRank <= 10,
         () => this.goToCharacterSelect(),
       );
     });
@@ -207,7 +165,6 @@ export class Game {
       );
       return;
     }
-
     try {
       this.session = await this.api.registerPlayer(email);
       this.goToCharacterSelect();
@@ -230,7 +187,6 @@ export class Game {
       );
       return;
     }
-
     try {
       this.session = await this.api.registerPlayer(email, displayName);
       this.goToCharacterSelect();
@@ -268,12 +224,8 @@ export class Game {
 
   private goToLobby(): void {
     this.state = GameState.LOBBY;
-    this.lobbyPlayerCount = 1;
-
-    // Connect WebSocket
     if (this.session) {
       this.socket.connect(this.session.sessionId);
-      // Send join_lobby after a short delay to ensure WS is connected
       setTimeout(() => {
         if (this.socket.isConnected()) {
           this.socket.joinLobby(
@@ -285,17 +237,15 @@ export class Game {
         }
       }, 500);
     }
-
     this.hud.showLobby(
-      this.lobbyPlayerCount,
+      1,
       this.session?.displayName ?? 'Player',
       this.selectedCharacterType,
       this.selectedMapId,
     );
   }
 
-  private startGameWithTasks(socketTasks: SocketGameTask[]): void {
-    // Convert socket tasks to internal GameTask format
+  private startGameFromServer(socketTasks: SocketGameTask[]): void {
     const tasks: GameTask[] = socketTasks.map((t) => ({
       id: t.id,
       type: t.type as TaskType,
@@ -308,34 +258,6 @@ export class Game {
     }));
 
     this.applyMapTheme(this.selectedMapId);
-    this.world = new World(this.selectedMapId);
-    this.scene.add(this.world.group);
-
-    this.npc = new NPC(new THREE.Vector3(-3, 0, 1.6), this.selectedMapId);
-    this.scene.add(this.npc.mesh);
-
-    this.player = new Player(this.selectedCharacterType);
-    this.scene.add(this.player.mesh);
-
-    this.spawnManager = new SpawnManager(this.selectedMapId);
-
-=======
-    this.showLoginScreen();
-  }
-
-  setCharacterType(type: CharacterType): void {
-    this.characterType = type;
-  }
-
-  setMapId(mapId: MapId): void {
-    this.selectedMapId = mapId;
-    this.applyMapTheme(mapId);
-  }
-
-  startGame(tasks: GameTask[], instanceId: string, mapId: MapId = this.selectedMapId): void {
-    this.currentInstanceId = instanceId;
-    this.selectedMapId = mapId;
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
     this.state = GameState.PLAYING;
     this.scoreManager.reset();
     this.challengeManager.reset();
@@ -343,16 +265,11 @@ export class Game {
     this.seedInventory.clear();
     this.plantQueue = [];
     this.waterFound = false;
-    this.applyMapTheme(mapId);
     this.player.mesh.position.set(0, 0, 6);
     this.gameStartTime = performance.now();
-
-<<<<<<< HEAD
-=======
-    this.spawnManager = new SpawnManager(mapId);
     this.requiredWaterPerCrop = this.getRequiredWaterPerCrop(tasks);
     this.createSessionObjects(tasks);
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
+
     this.challengeManager.startWithTasks(
       tasks,
       () => this.onTimeout(),
@@ -362,57 +279,28 @@ export class Game {
       (task, isFirstTask) => this.onTaskStarted(task, isFirstTask),
       (completedTask, nextTask) => this.onTaskCompleted(completedTask, nextTask),
     );
-<<<<<<< HEAD
-
-    this.requiredWaterPerCrop = this.getRequiredWaterPerCrop(tasks);
-    this.createSessionObjects(tasks);
-=======
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
-    this.hud.hideScreen();
-  }
-
-  // Fallback: start with local challenge generation (original 3-level flow)
-  private startLocalGame(): void {
-    this.state = GameState.PLAYING;
-    this.scoreManager.reset();
-    this.challengeManager.reset();
-    this.clearSessionObjects();
-    this.seedInventory.clear();
-    this.plantQueue = [];
-    this.waterFound = false;
-    this.player.mesh.position.set(0, 0, 6);
-    this.gameStartTime = performance.now();
-
-    const tasks = this.challengeManager.start(
-      1,
-      () => this.onTimeout(),
-      () => this.onChallengeUpdate(),
-      () => this.onAllComplete(),
-      (message) => this.hud.showFeedback(message),
-      (task, isFirstTask) => this.onTaskStarted(task, isFirstTask),
-      (completedTask, nextTask) => this.onTaskCompleted(completedTask, nextTask),
-    );
-
-    this.requiredWaterPerCrop = this.getRequiredWaterPerCrop(tasks);
-    this.createSessionObjects(tasks);
     this.hud.hideScreen();
   }
 
   private applyMapTheme(mapId: MapId): void {
     const theme = MAP_THEMES[mapId];
+    this.applySceneTheme(theme);
+    this.scene.remove(this.world.group, this.npc.mesh, this.player.mesh);
+    this.world = new World(theme);
+    this.player = new Player(this.selectedCharacterType);
+    this.npc = new NPC(new THREE.Vector3(-3, 0, 1.6), mapId);
+    this.spawnManager = new SpawnManager(mapId);
+    this.scene.add(this.world.group, this.npc.mesh, this.player.mesh);
+  }
+
+  private applySceneTheme(theme: MapTheme): void {
     this.renderer.setClearColor(theme.skyColor);
     this.scene.fog = new THREE.Fog(theme.fogColor, 38, 70);
-    // Update lighting
-    const lights = this.scene.children.filter((c) => c.isLight) as THREE.Light[];
-    for (const light of lights) {
-      if (light instanceof THREE.HemisphereLight) {
-        light.color.setHex(theme.hemisphereSkyColor);
-        light.groundColor.setHex(theme.hemisphereGroundColor);
-      } else if (light instanceof THREE.AmbientLight) {
-        light.intensity = theme.ambientIntensity;
-      } else if (light instanceof THREE.DirectionalLight) {
-        light.intensity = theme.sunIntensity;
-      }
+    if (this.ambientLight) this.ambientLight.intensity = theme.ambientIntensity;
+    if (this.sunLight) this.sunLight.intensity = theme.sunIntensity;
+    if (this.hemisphereLight) {
+      this.hemisphereLight.color.setHex(theme.hemisphereSkyColor);
+      this.hemisphereLight.groundColor.setHex(theme.hemisphereGroundColor);
     }
   }
 
@@ -441,74 +329,6 @@ export class Game {
     }
 
     this.renderer.render(this.scene, this.camera);
-  }
-
-  private showLoginScreen(): void {
-    this.hud.showRegistration((email, displayName) => this.registerPlayer(email, displayName));
-  }
-
-  private async registerPlayer(email: string, displayName?: string): Promise<void> {
-    if (!isValidEmail(email)) {
-      this.hud.showRegistration((nextEmail, nextName) => this.registerPlayer(nextEmail, nextName), 'Please enter a valid email address.');
-      return;
-    }
-
-    this.hud.showRegistration((nextEmail, nextName) => this.registerPlayer(nextEmail, nextName), '', true);
-    try {
-      this.session = await this.api.registerPlayer(email, displayName);
-      this.hud.showCharacterSelect((type) => {
-        this.setCharacterType(type);
-        this.hud.showMapSelect((mapId) => {
-          this.setMapId(mapId);
-          void this.startNewInstance();
-        });
-      });
-    } catch (error) {
-      console.error(error);
-      this.hud.showRegistration((nextEmail, nextName) => this.registerPlayer(nextEmail, nextName), "We couldn't start your game. Please check your connection and try again.");
-    }
-  }
-
-  private async startNewInstance(): Promise<void> {
-    if (!this.session) {
-      this.showLoginScreen();
-      return;
-    }
-
-    try {
-      this.session = await this.api.startNewSession(this.session.playerId, this.session.email, this.session.displayName);
-      const instance = await this.api.startInstance(this.session.sessionId, this.selectedMapId);
-      this.startGame(instance.tasks, instance.instanceId, instance.mapId);
-    } catch (error) {
-      console.error(error);
-      this.hud.showFeedback("We couldn't create a game instance. Please try again.");
-      this.hud.showMapSelect((mapId) => {
-        this.setMapId(mapId);
-        void this.startNewInstance();
-      });
-    }
-  }
-
-  private applyMapTheme(mapId: MapId): void {
-    const theme = MAP_THEMES[mapId];
-    this.applySceneTheme(theme);
-
-    this.scene.remove(this.world.group, this.npc.mesh, this.player.mesh);
-    this.world = new World(theme);
-    this.player = new Player(this.characterType);
-    this.npc = new NPC(new THREE.Vector3(-3, 0, 1.6), mapId);
-    this.scene.add(this.world.group, this.npc.mesh, this.player.mesh);
-  }
-
-  private applySceneTheme(theme: MapTheme): void {
-    this.renderer.setClearColor(theme.skyColor);
-    this.scene.fog = new THREE.Fog(theme.fogColor, 38, 70);
-    if (this.ambientLight) this.ambientLight.intensity = theme.ambientIntensity;
-    if (this.sunLight) this.sunLight.intensity = theme.sunIntensity;
-    if (this.hemisphereLight) {
-      this.hemisphereLight.color.setHex(theme.hemisphereSkyColor);
-      this.hemisphereLight.groundColor.setHex(theme.hemisphereGroundColor);
-    }
   }
 
   private createSessionObjects(tasks: GameTask[]): void {
@@ -548,7 +368,6 @@ export class Game {
       this.hud.showFeedback(`This ${CROP_LABEL[seed.cropType]} item is for a later task`);
       return;
     }
-
     this.addSeed(seed.cropType);
     this.scoreManager.add(seed.cropType === CropType.COFFEE ? 75 : 50);
   }
@@ -610,13 +429,11 @@ export class Game {
   private findNearestInteractable(): Interactable | null {
     const task = this.challengeManager.getCurrentTask();
     if (!task) return null;
-
     const candidates: Interactable[] = [
       ...this.seeds.filter((seed) => this.isSeedRelevant(seed, task)),
       ...this.crops.filter((crop) => this.isCropRelevant(crop, task)),
       ...(this.waterSource && task.type === TaskType.FIND_WATER ? [this.waterSource] : []),
     ];
-
     const playerPos = this.player.getPosition();
     let nearest: Interactable | null = null;
     let nearestDist = Infinity;
@@ -691,41 +508,10 @@ export class Game {
 
   private onTimeout(): void {
     this.state = GameState.GAME_OVER;
-<<<<<<< HEAD
     this.hud.showGameOver(
       this.challengeManager.getCurrentTask(),
       () => this.goToCharacterSelect(),
     );
-  }
-
-  private onAllComplete(): void {
-    this.state = GameState.COMPLETE;
-    this.scoreManager.add(300);
-    const completionTime = (performance.now() - this.gameStartTime) / 1000;
-
-    // Send completion to server via WebSocket
-    if (this.session && this.socket.isConnected()) {
-      this.socket.gameComplete(this.session.playerId, this.scoreManager.getScore(), completionTime);
-    }
-
-    // Also try REST API
-    if (this.session) {
-      void this.api.completeGame(this.session.sessionId, this.scoreManager.getScore()).catch(() => {});
-    }
-
-    const email = this.session?.email ?? '';
-    this.hud.showComplete(email, true, () => {
-      this.goToCharacterSelect();
-=======
-    this.hud.showGameOver(this.challengeManager.getCurrentTask(), () => {
-      this.hud.showCharacterSelect((type) => {
-        this.setCharacterType(type);
-        this.hud.showMapSelect((mapId) => {
-          this.setMapId(mapId);
-          void this.startNewInstance();
-        });
-      });
-    });
   }
 
   private async onGameComplete(): Promise<void> {
@@ -735,40 +521,34 @@ export class Game {
     const email = this.session?.email ?? '';
     this.hud.showRewardPreparing(email);
 
+    // Send completion to server via WebSocket
+    if (this.session && this.socket.isConnected()) {
+      this.socket.gameComplete(this.session.playerId, this.scoreManager.getScore(), completionTime);
+    }
+
     let emailSent = false;
     try {
       if (this.session) {
-        const result = await this.api.completeGame(this.session.sessionId, this.scoreManager.getScore(), completionTime);
+        const result = await this.api.completeGame(this.session.sessionId, this.scoreManager.getScore());
         emailSent = result.emailSent;
       }
     } catch (error) {
       console.error(error);
     }
 
-    this.hud.showComplete(email, emailSent, completionTime, () => {
-      this.hud.showCharacterSelect((type) => {
-        this.setCharacterType(type);
-        this.hud.showMapSelect((mapId) => {
-          this.setMapId(mapId);
-          void this.startNewInstance();
-        });
-      });
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
+    this.hud.showComplete(email, emailSent, () => {
+      this.goToCharacterSelect();
     });
   }
 
   private onTaskStarted(task: GameTask, isFirstTask: boolean): void {
     if (!isFirstTask) return;
     this.challengeManager.setPaused(true);
-<<<<<<< HEAD
-    // For server-provided tasks, just start immediately with a brief intro
-=======
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
     this.hud.showFirstTask(task, () => {
       this.hud.hideTaskModal();
       this.challengeManager.setPaused(false);
       this.onChallengeUpdate();
-    }, 1, this.challengeManager.getTaskCount());
+    });
   }
 
   private onTaskCompleted(completedTask: GameTask, nextTask: GameTask | null): void {
@@ -781,16 +561,12 @@ export class Game {
   }
 
   private onChallengeUpdate(): void {
-<<<<<<< HEAD
     this.hud.updateHUD(
       this.challengeManager.getCurrentTask(),
       this.challengeManager.getTimeRemaining(),
       this.challengeManager.getCompletedTaskCount(),
       this.challengeManager.getTaskCount(),
     );
-=======
-    this.hud.updateHUD(this.challengeManager.getCurrentTask(), this.challengeManager.getTimeRemaining());
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
   }
 
   private setupLighting(): void {
@@ -823,7 +599,6 @@ export class Game {
     const w = window.innerWidth;
     const h = window.innerHeight;
     this.renderer.setSize(w, h);
-
     const aspect = w / h;
     const frustumSize = 15;
     this.camera.left = (-frustumSize * aspect) / 2;

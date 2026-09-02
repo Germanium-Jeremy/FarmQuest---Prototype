@@ -1,10 +1,6 @@
 import * as THREE from 'three';
-<<<<<<< HEAD
 import { CharacterType } from '../data/CharacterType';
 import { CharacterParts, PlayerModel } from './PlayerModel';
-=======
-import { CharacterType, PlayerModel } from './PlayerModel';
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
 
 export class Player {
   public mesh: THREE.Group;
@@ -18,18 +14,8 @@ export class Player {
   private leftLegPivot: THREE.Group;
   private rightLegPivot: THREE.Group;
   private runTime = 0;
-  private parts: CharacterParts;
 
   constructor(characterType: CharacterType = 'male') {
-<<<<<<< HEAD
-    this.parts = PlayerModel.create(characterType);
-    this.mesh = this.parts.root;
-    this.body = this.parts.body;
-    this.leftArmPivot = this.parts.leftArmPivot;
-    this.rightArmPivot = this.parts.rightArmPivot;
-    this.leftLegPivot = this.parts.leftLegPivot;
-    this.rightLegPivot = this.parts.rightLegPivot;
-=======
     const parts = PlayerModel.create(characterType);
     this.mesh = parts.root;
     this.body = parts.body;
@@ -37,16 +23,6 @@ export class Player {
     this.rightArmPivot = parts.rightArmPivot;
     this.leftLegPivot = parts.leftLegPivot;
     this.rightLegPivot = parts.rightLegPivot;
-
-    // Shadow blob
-    const shadowGeom = new THREE.CircleGeometry(0.4, 12);
-    const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2 });
-    const shadow = new THREE.Mesh(shadowGeom, shadowMat);
-    shadow.rotation.x = -Math.PI / 2;
-    shadow.position.y = 0.01;
-    this.mesh.add(shadow);
-
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
     this.mesh.position.set(0, 0, 6);
   }
 
@@ -86,7 +62,6 @@ export class Player {
       nextZ.z = Math.max(worldBounds.minZ, Math.min(worldBounds.maxZ, nextZ.z + moveZ));
       if (canMoveTo(nextZ, this.collisionRadius)) this.mesh.position.z = nextZ.z;
 
-      // Rotate body to face movement direction
       const angle = Math.atan2(moveDir.x, moveDir.z);
       let diff = angle - this.mesh.rotation.y;
       diff = Math.atan2(Math.sin(diff), Math.cos(diff));
@@ -104,8 +79,7 @@ export class Player {
       this.rightArmPivot.rotation.x = -swing;
       this.leftLegPivot.rotation.x = -swing;
       this.rightLegPivot.rotation.x = swing;
-      this.body.position.y = this.body.position.y + (0.7 - this.body.position.y) * 0; // keep current base
-      this.body.position.y += Math.abs(Math.sin(this.runTime * 10)) * 0.04;
+      this.body.position.y = 0.7 + Math.abs(Math.sin(this.runTime * 10)) * 0.04;
       return;
     }
 

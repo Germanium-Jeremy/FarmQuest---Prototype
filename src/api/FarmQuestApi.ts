@@ -100,9 +100,6 @@ export class FarmQuestApi {
     await this.post('/game/level-complete', { sessionId, level, score });
   }
 
-  async completeGame(sessionId: string, score: number): Promise<CompletionResponse> {
-    return this.post<CompletionResponse>('/game/complete', { sessionId, score });
-  }
 
   private localSession(email: string, displayName?: string, playerId?: string): PlayerSession {
     return {

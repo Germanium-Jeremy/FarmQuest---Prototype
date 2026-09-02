@@ -1,4 +1,3 @@
-// ── Existing types ──────────────────────────────────────────────
 export type SessionStatus = 'IN_PROGRESS' | 'FAILED' | 'COMPLETED';
 export type CouponStatus = 'CREATED' | 'SENT' | 'REDEEMED' | 'EXPIRED';
 export type InstanceStatus = 'WAITING' | 'IN_PLAY' | 'FINISHED';
@@ -33,13 +32,6 @@ export interface CouponRow {
   redeemed_at: string | null;
 }
 
-<<<<<<< HEAD
-=======
-// ── Event / Instance types ──────────────────────────────────────
-export type InstanceStatus = 'WAITING' | 'IN_PROGRESS' | 'FINISHED';
-export type InstancePlayerStatus = 'REGISTERED' | 'PLAYING' | 'COMPLETED' | 'TIMEOUT';
-
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
 export interface EventInstanceRow {
   id: string;
   map_id: string;
@@ -74,10 +66,6 @@ export interface LeaderboardRow {
   coupon_id: string | null;
 }
 
-<<<<<<< HEAD
-=======
-// ── Vendor types ────────────────────────────────────────────────
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
 export interface VendorRow {
   id: string;
   username: string;

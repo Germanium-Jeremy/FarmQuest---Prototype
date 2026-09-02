@@ -8,13 +8,4 @@ export enum GameState {
   GAME_OVER = 'GAME_OVER',
   COMPLETE = 'COMPLETE',
   LEADERBOARD = 'LEADERBOARD',
-<<<<<<< HEAD
-=======
-}
-
-export enum Challenge {
-  FIND_SEED = 'FIND_SEED',
-  FIND_WATER = 'FIND_WATER',
-  HARVEST = 'HARVEST',
->>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
 }
