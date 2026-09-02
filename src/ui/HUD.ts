@@ -1,15 +1,10 @@
 import { CropType } from '../data/CropType';
+import { LevelConfig, TOTAL_LEVELS } from '../data/LevelConfig';
+import { MAP_THEMES, MapId } from '../data/MapTheme';
 import { TaskType } from '../data/TaskType';
 import { GameTask } from '../game/GameTask';
 import { ScoreManager } from '../game/ScoreManager';
-import { buttonStyle } from './components/Button';
-
-export interface HUDMeta {
-  taskNumber?: number;
-  taskCount?: number;
-  playerCount?: number;
-  elapsedSeconds?: number;
-}
+import { CharacterType } from '../player/PlayerModel';
 
 const taskIcon = (task: GameTask | null) => {
   if (!task) return '🌱';
@@ -119,7 +114,93 @@ export class HUD {
     `;
   }
 
-  showFirstTask(task: GameTask, onStart: () => void, taskNumber = 1, taskCount = 1): void {
+  showRegistration(
+    onRegister: (email: string, displayName?: string) => void,
+    errorMessage = '',
+    loading = false,
+  ): void {
+    this.hideHUD();
+    this.hideTaskModal();
+    this.screenEl.style.display = 'flex';
+    this.screenEl.innerHTML = `
+      <form id="registration-form" style="width:min(92vw,560px);background:linear-gradient(145deg,#fdf8df,#ecd17a);color:#193620;border-radius:24px;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,0.3);">
+        <h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 8px;font-weight:1000;">FarmQuest</h1>
+        <p style="font-size:19px;margin:0 0 20px;font-weight:800;color:#315033;">Enter your email to start. We'll use it to send your FarmQuest reward if you complete the challenge.</p>
+        <label style="display:block;text-align:left;font-weight:1000;margin:0 0 8px;">Email Address</label>
+        <input id="email-input" type="email" autocomplete="email" placeholder="player@example.com" style="${this.inputStyle()}" />
+        <label style="display:block;text-align:left;font-weight:1000;margin:14px 0 8px;">Display Name <span style="font-weight:700;color:#5d744d;">optional</span></label>
+        <input id="name-input" type="text" maxlength="40" placeholder="Player" style="${this.inputStyle()}" />
+        ${errorMessage ? `<div style="margin-top:14px;color:#b52828;font-weight:900;">${errorMessage}</div>` : ''}
+        <button id="register-btn" type="submit" style="${this.buttonStyle('#2f8f3a')};margin-top:20px;" ${loading ? 'disabled' : ''}>${loading ? 'Starting...' : 'Start FarmQuest'}</button>
+      </form>
+    `;
+    document.getElementById('registration-form')!.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const email = (document.getElementById('email-input') as HTMLInputElement).value;
+      const displayName = (document.getElementById('name-input') as HTMLInputElement).value;
+      onRegister(email, displayName);
+    });
+    for (const id of ['email-input', 'name-input']) {
+      const input = document.getElementById(id);
+      input?.addEventListener('keydown', (event) => event.stopPropagation());
+      input?.addEventListener('keyup', (event) => event.stopPropagation());
+    }
+  }
+
+  showLevelIntro(level: LevelConfig, firstTask: GameTask, onStart: () => void): void {
+    this.hideHUD();
+    this.showTaskCard({
+      eyebrow: `Level ${level.id}`,
+      kicker: level.name,
+      task: firstTask,
+      body: `${level.description}<br><strong>Farm Fact:</strong> ${level.introFact}<br>Your first task is ready.`,
+      buttonText: `Start Level ${level.id}`,
+      onButton: onStart,
+    });
+  }
+
+  showCharacterSelect(onSelect: (type: CharacterType) => void): void {
+    this.hideHUD();
+    this.hideTaskModal();
+    this.screenEl.style.display = 'flex';
+    this.screenEl.innerHTML = `
+      <div style="width:min(92vw,720px);background:linear-gradient(145deg,#fdf8df,#ecd17a);color:#193620;border-radius:24px;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,0.3);">
+        <h1 style="font-size:clamp(34px,7vw,52px);margin:0 0 10px;font-weight:1000;">Choose Your Farmer</h1>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-top:22px;">
+          ${this.choiceButton('character-male', 'Male', 'Blue overalls and straw hat')}
+          ${this.choiceButton('character-female', 'Female', 'Purple outfit, hair bun and flower')}
+          ${this.choiceButton('character-robot', 'Robot', 'Metal farmer with glowing lights')}
+        </div>
+      </div>
+    `;
+    document.getElementById('character-male')!.addEventListener('click', () => onSelect('male'));
+    document.getElementById('character-female')!.addEventListener('click', () => onSelect('female'));
+    document.getElementById('character-robot')!.addEventListener('click', () => onSelect('robot'));
+  }
+
+  showMapSelect(onSelect: (mapId: MapId) => void): void {
+    this.hideHUD();
+    this.hideTaskModal();
+    this.screenEl.style.display = 'flex';
+    this.screenEl.innerHTML = `
+      <div style="width:min(92vw,780px);background:rgba(18,38,24,0.95);border:2px solid rgba(255,227,109,0.55);border-radius:22px;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,0.32);">
+        <h1 style="font-size:clamp(34px,7vw,52px);margin:0 0 10px;color:#bff28a;">Choose Your Map</h1>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:22px;">
+          ${Object.values(MAP_THEMES).map((theme) => `
+            <button id="map-${theme.id}" style="${this.choiceStyle()};background:linear-gradient(145deg,#${theme.groundColor.toString(16).padStart(6, '0')},#${theme.waterColor.toString(16).padStart(6, '0')});color:#102214;">
+              <strong style="display:block;font-size:21px;margin-bottom:8px;">${theme.name}</strong>
+              <span style="font-size:14px;font-weight:900;">${theme.description}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    for (const theme of Object.values(MAP_THEMES)) {
+      document.getElementById(`map-${theme.id}`)!.addEventListener('click', () => onSelect(theme.id));
+    }
+  }
+
+  showFirstTask(task: GameTask, onStart: () => void): void {
     this.hideHUD();
     this.showTaskCard({
       eyebrow: 'FarmQuest Event',
@@ -196,6 +277,51 @@ export class HUD {
     document.getElementById('start-btn')!.addEventListener('click', onStart);
   }
 
+  showGameOver(currentTask: GameTask | null, onRetry: () => void): void {
+    this.hideHUD();
+    this.hideTaskModal();
+    this.screenEl.style.display = 'flex';
+    this.screenEl.innerHTML = `
+      <div style="width:min(92vw,560px);">
+        <h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 10px;color:#ff766e;">⏱ Time's Up!</h1>
+        <p style="font-size:20px;color:#e9f6e4;margin:0 0 18px;">You did not complete the current task.</p>
+        ${currentTask ? `
+          <div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:16px;margin-bottom:22px;">
+            <div style="font-size:12px;font-weight:1000;color:#bff28a;margin-bottom:5px;">CURRENT TASK</div>
+            <div style="font-size:28px;font-weight:1000;">${taskIcon(currentTask)} ${titleCase(currentTask.description)}</div>
+            <div style="font-size:20px;color:#ffe36d;margin-top:8px;">Progress: ${currentTask.currentAmount} / ${currentTask.targetAmount}</div>
+          </div>
+        ` : ''}
+        <p style="font-size:28px;color:#ffe36d;margin:0 0 28px;">⭐ Final Score: ${this.scoreManager.getScore()}</p>
+        <button id="retry-btn" style="${this.buttonStyle('#e5534b')}">Play Again</button>
+      </div>
+    `;
+    document.getElementById('retry-btn')!.addEventListener('click', onRetry);
+  }
+
+  showComplete(email: string, emailSent: boolean, completionTime: number, onRetry: () => void): void {
+    this.hideHUD();
+    this.hideTaskModal();
+    this.screenEl.style.display = 'flex';
+    this.screenEl.innerHTML = `
+      <div style="width:min(92vw,600px);">
+        <h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 10px;color:#bff28a;">🎉 FarmQuest Complete!</h1>
+        <p style="font-size:24px;color:#e9f6e4;margin:0 0 8px;font-weight:900;">You completed the full farm instance.</p>
+        <div style="font-size:18px;color:#d8f5c6;margin-bottom:16px;">Completion Time: ${completionTime.toFixed(1)}s</div>
+        <p style="font-size:28px;color:#ffe36d;margin:0 0 22px;">⭐ Final Score: ${this.scoreManager.getScore()}</p>
+        <div style="display:inline-block;background:rgba(255,227,109,0.12);border:2px solid #ffe36d;border-radius:18px;padding:22px 32px;margin-bottom:24px;">
+          <h2 style="font-size:28px;margin:0 0 8px;color:#ffe36d;">🎁 Reward Unlocked</h2>
+          <p style="font-size:21px;margin:0 0 14px;">${emailSent ? 'Your coupon has been sent to:' : 'Your reward was created, but the email could not be sent.'}</p>
+          <div style="font-size:22px;font-weight:1000;margin-bottom:14px;">${this.maskEmail(email)}</div>
+          <div style="font-size:22px;margin-top:16px;">Free Coffee ☕</div>
+        </div>
+        <br>
+        <button id="retry-btn" style="${this.buttonStyle('#52a447')}">Play Again</button>
+      </div>
+    `;
+    document.getElementById('retry-btn')!.addEventListener('click', onRetry);
+  }
+
   hideScreen(): void {
     this.screenEl.style.display = 'none';
   }
@@ -247,5 +373,51 @@ export class HUD {
         ${config.buttonText ? `<button id="task-modal-button" style="${buttonStyle('#2f8f3a')}">${config.buttonText}</button>` : ''}
       </div>
     `;
+  }
+
+  private buttonStyle(color: string): string {
+    return `
+      padding:15px 36px;font-size:20px;font-weight:1000;background:${color};color:white;
+      border:0;border-radius:999px;cursor:pointer;pointer-events:all;box-shadow:0 8px 22px rgba(0,0,0,0.24);
+    `;
+  }
+
+  private choiceButton(id: string, title: string, body: string): string {
+    return `
+      <button id="${id}" style="${this.choiceStyle()}">
+        <strong style="display:block;font-size:23px;margin-bottom:8px;">${title}</strong>
+        <span style="font-size:15px;font-weight:900;color:#315033;">${body}</span>
+      </button>
+    `;
+  }
+
+  private choiceStyle(): string {
+    return `
+      min-height:132px;padding:18px;border:2px solid rgba(49,80,51,0.25);border-radius:16px;
+      background:#fffdf2;color:#193620;cursor:pointer;pointer-events:all;text-align:left;
+      box-shadow:0 10px 24px rgba(0,0,0,0.18);font-family:inherit;
+    `;
+  }
+
+  private inputStyle(): string {
+    return `
+      width:100%;padding:14px 16px;border-radius:14px;border:2px solid rgba(49,80,51,0.25);
+      font-size:18px;font-weight:800;color:#193620;outline:none;background:#fffdf2;
+    `;
+  }
+
+  private progressDots(currentLevel: number, completedLevels: number[]): string {
+    return Array.from({ length: TOTAL_LEVELS }, (_, index) => {
+      const level = index + 1;
+      if (completedLevels.includes(level)) return '●';
+      if (level === currentLevel) return '◉';
+      return '○';
+    }).join(' - ');
+  }
+
+  private maskEmail(email: string): string {
+    const [name, domain] = email.split('@');
+    if (!name || !domain) return email;
+    return `${name.slice(0, 2)}***@${domain}`;
   }
 }

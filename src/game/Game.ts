@@ -2,11 +2,11 @@ import * as THREE from 'three';
 import { AccountNotFoundError, FarmQuestApi, isValidEmail, PlayerSession } from '../api/FarmQuestApi';
 import { GameSocket, LeaderboardEntry, LobbyPlayer } from '../api/GameSocket';
 import { CROP_LABEL, CropType } from '../data/CropType';
-import { CharacterType, getCharacterOption } from '../data/CharacterOptions';
-import { getMapOption, MapId } from '../data/MapOptions';
+import { MAP_THEMES, MapId, MapTheme } from '../data/MapTheme';
 import { TaskType } from '../data/TaskType';
 import { Player } from '../player/Player';
 import { PlayerController } from '../player/PlayerController';
+import { CharacterType } from '../player/PlayerModel';
 import { HUD } from '../ui/HUD';
 import { CharacterSelectScreen } from '../ui/screens/CharacterSelectScreen';
 import { CompleteScreen } from '../ui/screens/CompleteScreen';
@@ -34,16 +34,16 @@ export class Game {
   private camera: THREE.OrthographicCamera;
   private clock = new THREE.Clock();
   private hud: HUD;
-  private player = new Player();
+  private player = new Player('male');
   private playerController = new PlayerController();
-  private world = new World();
-  private npc = new NPC(new THREE.Vector3(-3, 0, 1.6));
+  private world = new World(MAP_THEMES.rwanda);
+  private npc = new NPC(new THREE.Vector3(-3, 0, 1.6), 'rwanda');
   private scoreManager = new ScoreManager();
   private challengeManager = new ChallengeManager(this.scoreManager);
   private api = new FarmQuestApi();
   private socket = new GameSocket();
   private session: PlayerSession | null = null;
-  private spawnManager = new SpawnManager();
+  private spawnManager = new SpawnManager('rwanda');
   private state: GameState = GameState.MENU;
   private sessionGroup = new THREE.Group();
   private seeds: Seed[] = [];
@@ -54,21 +54,13 @@ export class Game {
   private plantQueue: CropType[] = [];
   private waterFound = false;
   private requiredWaterPerCrop = 1;
-  private loginMode: LoginMode = 'register';
-  private selectedCharacter: CharacterType = 'male';
-  private selectedMap: MapId = 'rwanda';
-  private playerCount = 0;
-  private gameStartedAt = 0;
-  private completionTime = 0;
-  private leaderboard: LeaderboardEntry[] = [];
-  private hemiLight: THREE.HemisphereLight;
-  private loginScreen: LoginScreen;
-  private characterScreen: CharacterSelectScreen;
-  private mapScreen: MapSelectScreen;
-  private lobbyScreen: LobbyScreen;
-  private gameOverScreen: GameOverScreen;
-  private completeScreen: CompleteScreen;
-  private leaderboardScreen: LeaderboardScreen;
+  private characterType: CharacterType = 'male';
+  private selectedMapId: MapId = 'rwanda';
+  private currentInstanceId = '';
+  private gameStartTime = 0;
+  private ambientLight!: THREE.AmbientLight;
+  private sunLight!: THREE.DirectionalLight;
+  private hemisphereLight!: THREE.HemisphereLight;
 
   constructor(canvas: HTMLCanvasElement, uiOverlay: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -76,10 +68,9 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.setClearColor(0x8fd3ff);
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0x8fd3ff, 38, 70);
+    this.applySceneTheme(MAP_THEMES.rwanda);
 
     const aspect = window.innerWidth / window.innerHeight;
     const frustumSize = 15;
@@ -107,7 +98,45 @@ export class Game {
 
     this.bindSocket();
     window.addEventListener('resize', () => this.onResize());
-    this.showMenu();
+    this.showLoginScreen();
+  }
+
+  setCharacterType(type: CharacterType): void {
+    this.characterType = type;
+  }
+
+  setMapId(mapId: MapId): void {
+    this.selectedMapId = mapId;
+    this.applyMapTheme(mapId);
+  }
+
+  startGame(tasks: GameTask[], instanceId: string, mapId: MapId = this.selectedMapId): void {
+    this.currentInstanceId = instanceId;
+    this.selectedMapId = mapId;
+    this.state = GameState.PLAYING;
+    this.scoreManager.reset();
+    this.challengeManager.reset();
+    this.clearSessionObjects();
+    this.seedInventory.clear();
+    this.plantQueue = [];
+    this.waterFound = false;
+    this.applyMapTheme(mapId);
+    this.player.mesh.position.set(0, 0, 6);
+    this.gameStartTime = performance.now();
+
+    this.spawnManager = new SpawnManager(mapId);
+    this.requiredWaterPerCrop = this.getRequiredWaterPerCrop(tasks);
+    this.createSessionObjects(tasks);
+    this.challengeManager.startWithTasks(
+      tasks,
+      () => this.onTimeout(),
+      () => this.onChallengeUpdate(),
+      () => void this.onGameComplete(),
+      (message) => this.hud.showFeedback(message),
+      (task, isFirstTask) => this.onTaskStarted(task, isFirstTask),
+      (completedTask, nextTask) => this.onTaskCompleted(completedTask, nextTask),
+    );
+    this.hud.hideScreen();
   }
 
   update(): void {
@@ -137,190 +166,72 @@ export class Game {
     this.renderer.render(this.scene, this.camera);
   }
 
-  private showMenu(): void {
-    this.state = GameState.MENU;
-    this.hideFlowScreens();
-    this.hud.showMenu(() => this.showLogin());
+  private showLoginScreen(): void {
+    this.hud.showRegistration((email, displayName) => this.registerPlayer(email, displayName));
   }
 
-  private showLogin(errorMessage = '', loading = false): void {
-    this.state = GameState.LOGIN;
-    this.hud.hideScreen();
-    this.hideFlowScreens();
-    this.loginScreen.show({ mode: this.loginMode, errorMessage, loading }, {
-      onToggleMode: (mode) => {
-        this.loginMode = mode;
-        this.showLogin();
-      },
-      onLogin: (email) => {
-        void this.handleLogin(email);
-      },
-      onRegister: (email, displayName) => {
-        void this.handleRegister(email, displayName);
-      },
-    });
-  }
-
-  private async handleRegister(email: string, displayName: string): Promise<void> {
+  private async registerPlayer(email: string, displayName?: string): Promise<void> {
     if (!isValidEmail(email)) {
-      this.showLogin('Please enter a valid email address.');
-      return;
-    }
-    if (!displayName.trim()) {
-      this.showLogin('Please enter a display name.');
+      this.hud.showRegistration((nextEmail, nextName) => this.registerPlayer(nextEmail, nextName), 'Please enter a valid email address.');
       return;
     }
 
-    this.showLogin('', true);
+    this.hud.showRegistration((nextEmail, nextName) => this.registerPlayer(nextEmail, nextName), '', true);
     try {
       this.session = await this.api.registerPlayer(email, displayName);
-      this.showCharacterSelect();
+      this.hud.showCharacterSelect((type) => {
+        this.setCharacterType(type);
+        this.hud.showMapSelect((mapId) => {
+          this.setMapId(mapId);
+          void this.startNewInstance();
+        });
+      });
     } catch (error) {
       console.error(error);
-      this.showLogin("We couldn't create your account. Please try again.");
+      this.hud.showRegistration((nextEmail, nextName) => this.registerPlayer(nextEmail, nextName), "We couldn't start your game. Please check your connection and try again.");
     }
   }
 
-  private async handleLogin(email: string): Promise<void> {
-    if (!isValidEmail(email)) {
-      this.showLogin('Please enter a valid email address.');
-      return;
-    }
-
-    this.showLogin('', true);
-    try {
-      this.session = await this.api.loginPlayer(email);
-      this.showCharacterSelect();
-    } catch (error) {
-      if (error instanceof AccountNotFoundError) {
-        this.showLogin(error.message);
-        return;
-      }
-      console.error(error);
-      this.showLogin("We couldn't log you in. Please try again.");
-    }
-  }
-
-  private showCharacterSelect(): void {
-    this.state = GameState.CHARACTER_SELECT;
-    this.hideFlowScreens();
-    this.characterScreen.show({ selected: this.selectedCharacter }, {
-      onSelect: (type) => {
-        this.selectedCharacter = type;
-        this.showCharacterSelect();
-      },
-      onConfirm: (type) => {
-        this.selectedCharacter = type;
-        this.applyCharacterAppearance();
-        this.showMapSelect();
-      },
-    });
-  }
-
-  private showMapSelect(): void {
-    this.state = GameState.MAP_SELECT;
-    this.hideFlowScreens();
-    this.mapScreen.show({ selected: this.selectedMap }, {
-      onSelect: (id) => {
-        this.selectedMap = id;
-        this.showMapSelect();
-      },
-      onConfirm: (id) => {
-        this.selectedMap = id;
-        this.applyMapTheme();
-        this.enterLobby();
-      },
-    });
-  }
-
-  private enterLobby(): void {
+  private async startNewInstance(): Promise<void> {
     if (!this.session) {
-      this.showLogin('Please log in first.');
+      this.showLoginScreen();
       return;
     }
 
-    this.state = GameState.LOBBY;
-    this.hideFlowScreens();
-    this.playerCount = Math.max(1, this.playerCount);
-    this.lobbyScreen.show({
-      playerCount: this.playerCount,
-      characterType: this.selectedCharacter,
-      mapId: this.selectedMap,
-      displayName: this.session.displayName,
-    });
-
-    this.socket.connect(this.session.sessionId);
-    this.socket.joinLobby(
-      this.session.playerId,
-      this.session.displayName || 'Player',
-      this.selectedCharacter,
-      this.selectedMap,
-    );
-    this.socket.playerReady();
+    try {
+      this.session = await this.api.startNewSession(this.session.playerId, this.session.email, this.session.displayName);
+      const instance = await this.api.startInstance(this.session.sessionId, this.selectedMapId);
+      this.startGame(instance.tasks, instance.instanceId, instance.mapId);
+    } catch (error) {
+      console.error(error);
+      this.hud.showFeedback("We couldn't create a game instance. Please try again.");
+      this.hud.showMapSelect((mapId) => {
+        this.setMapId(mapId);
+        void this.startNewInstance();
+      });
+    }
   }
 
-  private bindSocket(): void {
-    this.socket.on('lobby_update', (message) => {
-      const players = (message.players as LobbyPlayer[] | undefined) ?? [];
-      this.playerCount = Number(message.playerCount ?? players.length);
-      if (this.state === GameState.LOBBY && this.session) {
-        this.lobbyScreen.updatePlayerCount(
-          this.playerCount,
-          this.selectedCharacter,
-          this.selectedMap,
-          this.session.displayName,
-        );
-      }
-    });
+  private applyMapTheme(mapId: MapId): void {
+    const theme = MAP_THEMES[mapId];
+    this.applySceneTheme(theme);
 
-    this.socket.on('game_start', (message) => {
-      const tasks = this.normalizeTasks(message.tasks);
-      this.startGame(tasks);
-    });
-
-    this.socket.on('leaderboard', (message) => {
-      this.leaderboard = (message.entries as LeaderboardEntry[] | undefined) ?? [];
-      if (this.state === GameState.LEADERBOARD) this.showLeaderboard();
-    });
-
-    this.socket.on('game_end', () => {
-      if (this.state === GameState.PLAYING || this.state === GameState.COMPLETE || this.state === GameState.GAME_OVER) {
-        this.showLeaderboard();
-      }
-    });
+    this.scene.remove(this.world.group, this.npc.mesh, this.player.mesh);
+    this.world = new World(theme);
+    this.player = new Player(this.characterType);
+    this.npc = new NPC(new THREE.Vector3(-3, 0, 1.6), mapId);
+    this.scene.add(this.world.group, this.npc.mesh, this.player.mesh);
   }
 
-  private startGame(tasks: GameTask[]): void {
-    if (this.state === GameState.PLAYING) return;
-    const playableTasks = tasks.length > 0 ? tasks : new ChallengeGenerator().generate(2);
-    this.state = GameState.PLAYING;
-    this.hideFlowScreens();
-    this.hud.hideScreen();
-    this.scoreManager.reset();
-    this.challengeManager.reset();
-    this.clearSessionObjects();
-    this.seedInventory.clear();
-    this.plantQueue = [];
-    this.waterFound = false;
-    this.gameStartedAt = performance.now();
-    this.completionTime = 0;
-    this.player.mesh.position.set(0, 0, 6);
-    this.applyCharacterAppearance();
-    this.applyMapTheme();
-
-    const started = this.challengeManager.startWithTasks(
-      playableTasks,
-      () => this.onTimeout(),
-      () => this.onChallengeUpdate(),
-      () => {
-        void this.onAllComplete();
-      },
-      (message) => this.hud.showFeedback(message),
-      (task, isFirstTask) => this.onTaskStarted(task, isFirstTask),
-      (completedTask, nextTask) => this.onTaskCompleted(completedTask, nextTask),
-    );
-    this.requiredWaterPerCrop = this.getRequiredWaterPerCrop(started);
-    this.createSessionObjects(started);
+  private applySceneTheme(theme: MapTheme): void {
+    this.renderer.setClearColor(theme.skyColor);
+    this.scene.fog = new THREE.Fog(theme.fogColor, 38, 70);
+    if (this.ambientLight) this.ambientLight.intensity = theme.ambientIntensity;
+    if (this.sunLight) this.sunLight.intensity = theme.sunIntensity;
+    if (this.hemisphereLight) {
+      this.hemisphereLight.color.setHex(theme.hemisphereSkyColor);
+      this.hemisphereLight.groundColor.setHex(theme.hemisphereGroundColor);
+    }
   }
 
   private createSessionObjects(tasks: GameTask[]): void {
@@ -366,7 +277,7 @@ export class Game {
   }
 
   private useWaterSource(): void {
-    if (this.challengeManager.registerProgress(TaskType.FIND_WATER, undefined, 1, `Farm fact: water helps roots move nutrients into the plant. +100`)) {
+    if (this.challengeManager.registerProgress(TaskType.FIND_WATER, undefined, 1, 'Farm fact: water helps roots move nutrients into the plant. +100')) {
       this.waterFound = true;
       this.scoreManager.add(100);
       return;
@@ -503,38 +414,43 @@ export class Game {
 
   private onTimeout(): void {
     this.state = GameState.GAME_OVER;
-    this.completionTime = this.elapsedSeconds();
-    this.hud.hideHUD();
-    this.submitResult();
-    this.hideFlowScreens();
-    this.gameOverScreen.show(
-      { score: this.scoreManager.getScore(), currentTask: this.challengeManager.getCurrentTask() },
-      {
-        onPlayAgain: () => {
-          void this.playAgain();
-        },
-        onLeaderboard: () => this.showLeaderboard(),
-      },
-    );
+    this.hud.showGameOver(this.challengeManager.getCurrentTask(), () => {
+      this.hud.showCharacterSelect((type) => {
+        this.setCharacterType(type);
+        this.hud.showMapSelect((mapId) => {
+          this.setMapId(mapId);
+          void this.startNewInstance();
+        });
+      });
+    });
   }
 
-  private async onAllComplete(): Promise<void> {
+  private async onGameComplete(): Promise<void> {
     this.state = GameState.COMPLETE;
-    this.completionTime = this.elapsedSeconds();
     this.scoreManager.add(300);
-    this.hud.hideHUD();
-    this.submitResult();
-    this.hideFlowScreens();
-    const rank = this.myRank();
-    this.completeScreen.show(
-      { score: this.scoreManager.getScore(), rank, isTop10: rank != null && rank <= 10 },
-      {
-        onLeaderboard: () => this.showLeaderboard(),
-        onPlayAgain: () => {
-          void this.playAgain();
-        },
-      },
-    );
+    const completionTime = (performance.now() - this.gameStartTime) / 1000;
+    const email = this.session?.email ?? '';
+    this.hud.showRewardPreparing(email);
+
+    let emailSent = false;
+    try {
+      if (this.session) {
+        const result = await this.api.completeGame(this.session.sessionId, this.scoreManager.getScore(), completionTime);
+        emailSent = result.emailSent;
+      }
+    } catch (error) {
+      console.error(error);
+    }
+
+    this.hud.showComplete(email, emailSent, completionTime, () => {
+      this.hud.showCharacterSelect((type) => {
+        this.setCharacterType(type);
+        this.hud.showMapSelect((mapId) => {
+          this.setMapId(mapId);
+          void this.startNewInstance();
+        });
+      });
+    });
   }
 
   private onTaskStarted(task: GameTask, isFirstTask: boolean): void {
@@ -557,121 +473,26 @@ export class Game {
   }
 
   private onChallengeUpdate(): void {
-    this.hud.updateHUD(this.challengeManager.getCurrentTask(), this.challengeManager.getTimeRemaining(), {
-      taskNumber: this.challengeManager.getCompletedTaskCount() + 1,
-      taskCount: this.challengeManager.getTaskCount(),
-      playerCount: this.playerCount,
-      elapsedSeconds: this.elapsedSeconds(),
-    });
+    this.hud.updateHUD(this.challengeManager.getCurrentTask(), this.challengeManager.getTimeRemaining());
   }
 
-  private showLeaderboard(): void {
-    this.state = GameState.LEADERBOARD;
-    this.hud.hideHUD();
-    this.hideFlowScreens();
-    const rank = this.myRank();
-    this.leaderboardScreen.show(
-      {
-        entries: this.leaderboard,
-        playerId: this.session?.playerId,
-        yourRank: rank,
-        yourScore: this.scoreManager.getScore(),
-        isTop10: rank != null && rank <= 10,
-      },
-      {
-        onPlayAgain: () => {
-          void this.playAgain();
-        },
-      },
-    );
-  }
+  private setupLighting(): void {
+    this.ambientLight = new THREE.AmbientLight(0xffffff, MAP_THEMES.rwanda.ambientIntensity);
+    this.scene.add(this.ambientLight);
 
-  private async playAgain(): Promise<void> {
-    this.clearSessionObjects();
-    this.scoreManager.reset();
-    this.challengeManager.reset();
-    this.leaderboard = [];
-    if (this.session) {
-      try {
-        this.session = await this.api.startNewSession(this.session.playerId, this.session.email, this.session.displayName);
-      } catch (error) {
-        console.error(error);
-      }
-    }
-    this.showCharacterSelect();
-  }
+    this.sunLight = new THREE.DirectionalLight(0xffffff, MAP_THEMES.rwanda.sunIntensity);
+    this.sunLight.position.set(10, 16, 10);
+    this.sunLight.castShadow = true;
+    this.sunLight.shadow.mapSize.width = 2048;
+    this.sunLight.shadow.mapSize.height = 2048;
+    this.sunLight.shadow.camera.left = -24;
+    this.sunLight.shadow.camera.right = 24;
+    this.sunLight.shadow.camera.top = 24;
+    this.sunLight.shadow.camera.bottom = -24;
+    this.scene.add(this.sunLight);
 
-  private submitResult(): void {
-    this.socket.gameComplete(this.scoreManager.getScore(), this.completionTime);
-  }
-
-  private myRank(): number | undefined {
-    return this.leaderboard.find((entry) => entry.playerId === this.session?.playerId)?.rank;
-  }
-
-  private elapsedSeconds(): number {
-    if (!this.gameStartedAt) return 0;
-    return Math.floor((performance.now() - this.gameStartedAt) / 1000);
-  }
-
-  private normalizeTasks(raw: unknown): GameTask[] {
-    if (!Array.isArray(raw)) return [];
-    return raw.map((item, index) => {
-      const task = item as Partial<GameTask>;
-      return {
-        id: task.id ?? `task-${index}`,
-        type: task.type as TaskType,
-        cropType: task.cropType,
-        targetAmount: Number(task.targetAmount ?? 1),
-        currentAmount: 0,
-        timeLimit: Number(task.timeLimit ?? 30),
-        scoreReward: Number(task.scoreReward ?? 50),
-        description: task.description ?? 'Complete the farm task',
-      };
-    }).filter((task) => Boolean(task.type));
-  }
-
-  private applyCharacterAppearance(): void {
-    const option = getCharacterOption(this.selectedCharacter);
-    const material = this.player.body.material as THREE.MeshLambertMaterial;
-    material.color.setHex(option.bodyColor);
-  }
-
-  private applyMapTheme(): void {
-    const map = getMapOption(this.selectedMap);
-    this.renderer.setClearColor(map.skyColor);
-    this.scene.fog = new THREE.Fog(map.skyColor, 38, 70);
-    this.hemiLight.color.setHex(map.skyColor);
-    this.hemiLight.groundColor.setHex(map.groundColor);
-  }
-
-  private hideFlowScreens(): void {
-    this.loginScreen.hide();
-    this.characterScreen.hide();
-    this.mapScreen.hide();
-    this.lobbyScreen.hide();
-    this.gameOverScreen.hide();
-    this.completeScreen.hide();
-    this.leaderboardScreen.hide();
-  }
-
-  private setupLighting(): THREE.HemisphereLight {
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.62));
-
-    const sun = new THREE.DirectionalLight(0xffffff, 1.0);
-    sun.position.set(10, 16, 10);
-    sun.castShadow = true;
-    sun.shadow.mapSize.width = 2048;
-    sun.shadow.mapSize.height = 2048;
-    sun.shadow.camera.left = -24;
-    sun.shadow.camera.right = 24;
-    sun.shadow.camera.top = 24;
-    sun.shadow.camera.bottom = -24;
-    this.scene.add(sun);
-
-    const hemi = new THREE.HemisphereLight(0x8fd3ff, 0x7ec850, 0.35);
-    this.scene.add(hemi);
-    return hemi;
+    this.hemisphereLight = new THREE.HemisphereLight(MAP_THEMES.rwanda.hemisphereSkyColor, MAP_THEMES.rwanda.hemisphereGroundColor, 0.35);
+    this.scene.add(this.hemisphereLight);
   }
 
   private updateCamera(): void {

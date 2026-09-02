@@ -15,11 +15,13 @@ export interface CompletionResponse {
   alreadyIssued: boolean;
 }
 
-export class AccountNotFoundError extends Error {
-  constructor() {
-    super('Account not found. Please register.');
-    this.name = 'AccountNotFoundError';
-  }
+import { MapId } from '../data/MapTheme';
+import { GameTask } from '../game/GameTask';
+
+export interface GameInstanceResponse {
+  instanceId: string;
+  mapId: MapId;
+  tasks: GameTask[];
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -135,13 +137,12 @@ export class FarmQuestApi {
     localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
   }
 
-  private getAccounts(): StoredAccount[] {
-    try {
-      const raw = localStorage.getItem(ACCOUNTS_KEY);
-      return raw ? JSON.parse(raw) as StoredAccount[] : [];
-    } catch {
-      return [];
-    }
+  async startInstance(sessionId: string, mapId: MapId): Promise<GameInstanceResponse> {
+    return this.post<GameInstanceResponse>('/game/instance', { sessionId, mapId });
+  }
+
+  async completeGame(sessionId: string, score: number, completionTime?: number): Promise<CompletionResponse> {
+    return this.post<CompletionResponse>('/game/complete', { sessionId, score, completionTime });
   }
 
   private async post<T = unknown>(path: string, body: unknown): Promise<T> {
