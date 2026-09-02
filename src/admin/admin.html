@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FarmQuest Admin</title>
+  <link rel="stylesheet" href="./admin.css" />
+</head>
+<body>
+  <div id="auth-gate" class="auth-gate">
+    <form id="auth-form" class="auth-card">
+      <h1>🌾 FarmQuest Admin</h1>
+      <p>Enter the admin token to open the event dashboard.</p>
+      <input id="admin-token" type="password" autocomplete="current-password" placeholder="Admin token" />
+      <div id="auth-error" class="auth-error"></div>
+      <button type="submit">Open Dashboard</button>
+    </form>
+  </div>
+
+  <div id="dashboard" class="dashboard hidden">
+    <header class="header">
+      <div>
+        <h1>🌾 FARMQUEST</h1>
+        <p>EVENT DASHBOARD</p>
+      </div>
+      <div id="status-pill" class="status-pill">WAITING</div>
+    </header>
+
+    <main class="panels">
+      <section class="panel">
+        <h2>Entering Players</h2>
+        <div id="player-list" class="list"></div>
+        <div id="player-total" class="panel-footer">Total: 0 players</div>
+      </section>
+      <section class="panel">
+        <h2>Leaderboard</h2>
+        <div id="leaderboard-list" class="list"></div>
+        <div id="elapsed-time" class="panel-footer">Time: 00:00</div>
+      </section>
+    </main>
+
+    <div class="actions">
+      <button id="start-btn" type="button">🎮 START GAME</button>
+      <button id="end-btn" type="button" class="danger">⏹️ END GAME</button>
+    </div>
+
+    <footer class="status-bar">
+      <span id="map-label">Map: —</span>
+      <span id="status-label">Status: WAITING</span>
+    </footer>
+  </div>
+
+  <script type="module" src="./admin.ts"></script>
+</body>
+</html>

@@ -1,8 +1,15 @@
 import { CropType } from '../data/CropType';
-import { LevelConfig, TOTAL_LEVELS } from '../data/LevelConfig';
 import { TaskType } from '../data/TaskType';
 import { GameTask } from '../game/GameTask';
 import { ScoreManager } from '../game/ScoreManager';
+import { buttonStyle } from './components/Button';
+
+export interface HUDMeta {
+  taskNumber?: number;
+  taskCount?: number;
+  playerCount?: number;
+  elapsedSeconds?: number;
+}
 
 const taskIcon = (task: GameTask | null) => {
   if (!task) return '🌱';
@@ -16,6 +23,11 @@ const taskIcon = (task: GameTask | null) => {
 
 const titleCase = (text: string) => text.replace(/\b\w/g, (letter) => letter.toUpperCase());
 
+const formatTime = (seconds: number): string => {
+  const safe = Math.max(0, Math.floor(seconds));
+  return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
+};
+
 export class HUD {
   private hudEl: HTMLElement;
   private promptEl: HTMLElement;
@@ -26,7 +38,6 @@ export class HUD {
   private transitionTimer: number | null = null;
 
   constructor(private overlay: HTMLElement, private scoreManager: ScoreManager) {
-    this.overlay.innerHTML = '';
     this.overlay.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:10;font-family:Segoe UI,Tahoma,sans-serif;';
 
     this.hudEl = document.createElement('div');
@@ -60,31 +71,35 @@ export class HUD {
     this.taskModalEl.style.cssText = `
       position:absolute;inset:0;display:none;justify-content:center;align-items:center;
       background:radial-gradient(circle at 50% 42%,rgba(63,117,67,0.28),rgba(8,13,10,0.58));
-      pointer-events:all;color:white;text-align:center;padding:20px;
+      pointer-events:all;color:white;text-align:center;padding:20px;z-index:15;
     `;
     this.overlay.appendChild(this.taskModalEl);
 
     this.screenEl = document.createElement('div');
     this.screenEl.style.cssText = `
       position:absolute;inset:0;display:none;justify-content:center;align-items:center;
-      background:rgba(12,19,15,0.86);pointer-events:all;color:white;text-align:center;padding:24px;
+      background:rgba(12,19,15,0.86);pointer-events:all;color:white;text-align:center;padding:24px;z-index:15;
     `;
     this.overlay.appendChild(this.screenEl);
   }
 
-  updateHUD(task: GameTask | null, timeRemaining: number, level?: LevelConfig, completedLevels: number[] = []): void {
+  updateHUD(task: GameTask | null, timeRemaining: number, meta: HUDMeta = {}): void {
     if (!task) return;
     this.hudEl.style.display = 'block';
-    const timeStr = `${String(Math.floor(timeRemaining / 60)).padStart(2, '0')}:${String(Math.floor(timeRemaining) % 60).padStart(2, '0')}`;
     const lowTime = timeRemaining <= 8;
     const progress = Math.round((task.currentAmount / task.targetAmount) * 100);
+    const taskNumber = meta.taskNumber ?? 1;
+    const taskCount = meta.taskCount ?? 1;
+    const elapsed = meta.elapsedSeconds ?? 0;
+    const playerCount = meta.playerCount;
+
     this.hudEl.innerHTML = `
       <div style="display:flex;gap:14px;align-items:center;">
         <div style="font-size:42px;line-height:1;background:rgba(255,255,255,0.13);border-radius:14px;padding:9px 12px;">${taskIcon(task)}</div>
         <div style="flex:1;min-width:0;text-align:left;">
           <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:3px;">
             <div style="font-size:12px;font-weight:1000;letter-spacing:0;color:#bff28a;">CURRENT TASK</div>
-            ${level ? `<div style="font-size:13px;font-weight:1000;color:#ffe36d;">LEVEL ${level.id} OF ${TOTAL_LEVELS} - ${level.name}</div>` : ''}
+            <div style="font-size:13px;font-weight:1000;color:#ffe36d;">TASK ${taskNumber} OF ${taskCount}</div>
           </div>
           <div style="font-size:clamp(22px,4vw,32px);line-height:1.08;font-weight:1000;margin-bottom:11px;">${titleCase(task.description)}</div>
           <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;">
@@ -94,65 +109,21 @@ export class HUD {
             <div style="font-size:20px;font-weight:1000;color:#ffe36d;">${task.currentAmount} / ${task.targetAmount}</div>
           </div>
           <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:9px;font-size:17px;font-weight:900;">
-            <span style="color:${lowTime ? '#ff766e' : '#bff28a'};">⏱ ${timeStr}</span>
+            <span style="color:${lowTime ? '#ff766e' : '#bff28a'};">⏱ ${formatTime(timeRemaining)}</span>
+            <span style="color:#d8f5c6;">🕒 ${formatTime(elapsed)}</span>
             <span style="color:#ffe36d;">⭐ Score ${this.scoreManager.getScore()}</span>
-            <span style="color:#d8f5c6;">${this.progressDots(level?.id ?? 1, completedLevels)}</span>
+            ${playerCount != null ? `<span style="color:#bff28a;">PLAYERS: ${playerCount} connected</span>` : ''}
           </div>
         </div>
       </div>
     `;
   }
 
-  showRegistration(
-    onRegister: (email: string, displayName?: string) => void,
-    errorMessage = '',
-    loading = false,
-  ): void {
-    this.hideHUD();
-    this.hideTaskModal();
-    this.screenEl.style.display = 'flex';
-    this.screenEl.innerHTML = `
-      <form id="registration-form" style="width:min(92vw,560px);background:linear-gradient(145deg,#fdf8df,#ecd17a);color:#193620;border-radius:24px;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,0.3);">
-        <h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 8px;font-weight:1000;">FarmQuest</h1>
-        <p style="font-size:19px;margin:0 0 20px;font-weight:800;color:#315033;">Enter your email to start. We'll use it to send your FarmQuest reward if you complete the challenge.</p>
-        <label style="display:block;text-align:left;font-weight:1000;margin:0 0 8px;">Email Address</label>
-        <input id="email-input" type="email" autocomplete="email" placeholder="player@example.com" style="${this.inputStyle()}" />
-        <label style="display:block;text-align:left;font-weight:1000;margin:14px 0 8px;">Display Name <span style="font-weight:700;color:#5d744d;">optional</span></label>
-        <input id="name-input" type="text" maxlength="40" placeholder="Player" style="${this.inputStyle()}" />
-        ${errorMessage ? `<div style="margin-top:14px;color:#b52828;font-weight:900;">${errorMessage}</div>` : ''}
-        <button id="register-btn" type="submit" style="${this.buttonStyle('#2f8f3a')};margin-top:20px;" ${loading ? 'disabled' : ''}>${loading ? 'Starting...' : 'Start FarmQuest'}</button>
-      </form>
-    `;
-    document.getElementById('registration-form')!.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const email = (document.getElementById('email-input') as HTMLInputElement).value;
-      const displayName = (document.getElementById('name-input') as HTMLInputElement).value;
-      onRegister(email, displayName);
-    });
-    for (const id of ['email-input', 'name-input']) {
-      const input = document.getElementById(id);
-      input?.addEventListener('keydown', (event) => event.stopPropagation());
-      input?.addEventListener('keyup', (event) => event.stopPropagation());
-    }
-  }
-
-  showLevelIntro(level: LevelConfig, firstTask: GameTask, onStart: () => void): void {
+  showFirstTask(task: GameTask, onStart: () => void, taskNumber = 1, taskCount = 1): void {
     this.hideHUD();
     this.showTaskCard({
-      eyebrow: `Level ${level.id}`,
-      kicker: level.name,
-      task: firstTask,
-      body: `${level.description}<br><strong>Farm Fact:</strong> ${level.introFact}<br>Your first task is ready.`,
-      buttonText: `Start Level ${level.id}`,
-      onButton: onStart,
-    });
-  }
-
-  showFirstTask(task: GameTask, onStart: () => void): void {
-    this.hideHUD();
-    this.showTaskCard({
-      eyebrow: 'Welcome to FarmQuest',
-      kicker: 'Your First Task',
+      eyebrow: 'FarmQuest Event',
+      kicker: `Task ${taskNumber} of ${taskCount}`,
       task,
       body: 'Complete the farming challenges before time runs out.',
       buttonText: 'Start Game',
@@ -189,66 +160,6 @@ export class HUD {
     }, 1150);
   }
 
-  showLevelComplete(
-    level: LevelConfig,
-    nextLevel: LevelConfig | null,
-    levelScore: number,
-    totalScore: number,
-    onContinue: () => void,
-  ): void {
-    this.hideHUD();
-    this.hideTaskModal();
-    this.screenEl.style.display = 'flex';
-    this.screenEl.innerHTML = `
-      <div style="width:min(92vw,600px);background:rgba(18,38,24,0.95);border:2px solid rgba(255,227,109,0.55);border-radius:22px;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,0.32);">
-        <h1 style="font-size:clamp(34px,7vw,52px);margin:0 0 8px;color:#bff28a;">🎉 Level ${level.id} Complete!</h1>
-        <p style="font-size:23px;margin:0 0 18px;font-weight:900;">${level.name} mastered</p>
-        <p style="font-size:21px;color:#ffe36d;margin:0 0 6px;">Level Score: ⭐ ${levelScore}</p>
-        <p style="font-size:21px;color:#ffe36d;margin:0 0 22px;">Total Score: ⭐ ${totalScore}</p>
-        ${nextLevel ? `<div style="color:#e9f6e4;font-size:18px;margin-bottom:22px;">Next: Level ${nextLevel.id} - ${nextLevel.name}</div>` : ''}
-        <button id="continue-level-btn" style="${this.buttonStyle('#52a447')}">${nextLevel ? `Continue to Level ${nextLevel.id}` : 'Prepare Reward'}</button>
-      </div>
-    `;
-    document.getElementById('continue-level-btn')!.addEventListener('click', onContinue);
-  }
-
-  showLevelFailed(
-    level: LevelConfig,
-    completedTasks: number,
-    totalTasks: number,
-    totalScore: number,
-    onRetryLevel: () => void,
-    onRestart: () => void,
-  ): void {
-    this.hideHUD();
-    this.hideTaskModal();
-    this.screenEl.style.display = 'flex';
-    this.screenEl.innerHTML = `
-      <div style="width:min(92vw,580px);">
-        <h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 10px;color:#ff766e;">Level Failed</h1>
-        <p style="font-size:21px;color:#e9f6e4;margin:0 0 18px;">You ran out of time in Level ${level.id} - ${level.name}.</p>
-        <p style="font-size:20px;color:#ffe36d;margin:0 0 8px;">Completed Tasks: ${completedTasks} / ${totalTasks}</p>
-        <p style="font-size:24px;color:#ffe36d;margin:0 0 26px;">Total Score: ⭐ ${totalScore}</p>
-        <button id="retry-level-btn" style="${this.buttonStyle('#e7a53b')}">Retry Level</button>
-        <button id="restart-game-btn" style="${this.buttonStyle('#e5534b')};margin-left:10px;">Restart FarmQuest</button>
-      </div>
-    `;
-    document.getElementById('retry-level-btn')!.addEventListener('click', onRetryLevel);
-    document.getElementById('restart-game-btn')!.addEventListener('click', onRestart);
-  }
-
-  showRewardPreparing(email: string): void {
-    this.hideHUD();
-    this.hideTaskModal();
-    this.screenEl.style.display = 'flex';
-    this.screenEl.innerHTML = `
-      <div style="width:min(92vw,560px);">
-        <h1 style="font-size:clamp(34px,7vw,52px);margin:0 0 14px;color:#bff28a;">Preparing Your Reward...</h1>
-        <p style="font-size:21px;color:#e9f6e4;">Sending your coupon to ${this.maskEmail(email)}.</p>
-      </div>
-    `;
-  }
-
   showPrompt(text: string): void {
     this.promptEl.style.display = 'block';
     this.promptEl.textContent = `[E] ${text}`;
@@ -278,56 +189,11 @@ export class HUD {
       <div style="width:min(92vw,620px);">
         <h1 style="font-size:clamp(44px,9vw,70px);margin:0 0 10px;font-weight:1000;">FarmQuest</h1>
         <p style="font-size:20px;color:#d9ead1;margin:0 0 34px;">Explore, collect seeds, plant crops, find water, harvest, and claim your reward.</p>
-        <button id="start-btn" style="${this.buttonStyle('#52a447')}">Start Game</button>
+        <button id="start-btn" style="${buttonStyle('#52a447')}">Enter Event</button>
         <div style="margin-top:24px;color:#b8c9b2;font-size:15px;">WASD / Arrow Keys to move. E or Space to interact.</div>
       </div>
     `;
     document.getElementById('start-btn')!.addEventListener('click', onStart);
-  }
-
-  showGameOver(currentTask: GameTask | null, onRetry: () => void): void {
-    this.hideHUD();
-    this.hideTaskModal();
-    this.screenEl.style.display = 'flex';
-    this.screenEl.innerHTML = `
-      <div style="width:min(92vw,560px);">
-        <h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 10px;color:#ff766e;">⏱ Time's Up!</h1>
-        <p style="font-size:20px;color:#e9f6e4;margin:0 0 18px;">You did not complete the current task.</p>
-        ${currentTask ? `
-          <div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:16px;margin-bottom:22px;">
-            <div style="font-size:12px;font-weight:1000;color:#bff28a;margin-bottom:5px;">CURRENT TASK</div>
-            <div style="font-size:28px;font-weight:1000;">${taskIcon(currentTask)} ${titleCase(currentTask.description)}</div>
-            <div style="font-size:20px;color:#ffe36d;margin-top:8px;">Progress: ${currentTask.currentAmount} / ${currentTask.targetAmount}</div>
-          </div>
-        ` : ''}
-        <p style="font-size:28px;color:#ffe36d;margin:0 0 28px;">⭐ Final Score: ${this.scoreManager.getScore()}</p>
-        <button id="retry-btn" style="${this.buttonStyle('#e5534b')}">Play Again</button>
-      </div>
-    `;
-    document.getElementById('retry-btn')!.addEventListener('click', onRetry);
-  }
-
-  showComplete(email: string, emailSent: boolean, completedLevels: number[], onRetry: () => void): void {
-    this.hideHUD();
-    this.hideTaskModal();
-    this.screenEl.style.display = 'flex';
-    this.screenEl.innerHTML = `
-      <div style="width:min(92vw,600px);">
-        <h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 10px;color:#bff28a;">🎉 FarmQuest Complete!</h1>
-        <p style="font-size:24px;color:#e9f6e4;margin:0 0 8px;font-weight:900;">You completed all ${TOTAL_LEVELS} levels.</p>
-        <div style="font-size:18px;color:#d8f5c6;margin-bottom:16px;">${completedLevels.map((level) => `✓ Level ${level}`).join(' &nbsp; ')}</div>
-        <p style="font-size:28px;color:#ffe36d;margin:0 0 22px;">⭐ Final Score: ${this.scoreManager.getScore()}</p>
-        <div style="display:inline-block;background:rgba(255,227,109,0.12);border:2px solid #ffe36d;border-radius:18px;padding:22px 32px;margin-bottom:24px;">
-          <h2 style="font-size:28px;margin:0 0 8px;color:#ffe36d;">🎁 Reward Unlocked</h2>
-          <p style="font-size:21px;margin:0 0 14px;">${emailSent ? 'Your coupon has been sent to:' : 'Your reward was created, but the email could not be sent.'}</p>
-          <div style="font-size:22px;font-weight:1000;margin-bottom:14px;">${this.maskEmail(email)}</div>
-          <div style="font-size:22px;margin-top:16px;">Free Coffee ☕</div>
-        </div>
-        <br>
-        <button id="retry-btn" style="${this.buttonStyle('#52a447')}">Play Again</button>
-      </div>
-    `;
-    document.getElementById('retry-btn')!.addEventListener('click', onRetry);
   }
 
   hideScreen(): void {
@@ -378,37 +244,8 @@ export class HUD {
         <div style="font-size:56px;line-height:1;margin:12px 0 8px;">${config.icon}</div>
         <h1 style="font-size:clamp(30px,7vw,46px);line-height:1.04;margin:0 0 14px;font-weight:1000;">${config.title}</h1>
         <p style="font-size:19px;line-height:1.35;margin:0 0 ${config.buttonText ? '22px' : '0'};font-weight:800;color:#315033;">${config.body}</p>
-        ${config.buttonText ? `<button id="task-modal-button" style="${this.buttonStyle('#2f8f3a')}">${config.buttonText}</button>` : ''}
+        ${config.buttonText ? `<button id="task-modal-button" style="${buttonStyle('#2f8f3a')}">${config.buttonText}</button>` : ''}
       </div>
     `;
-  }
-
-  private buttonStyle(color: string): string {
-    return `
-      padding:15px 36px;font-size:20px;font-weight:1000;background:${color};color:white;
-      border:0;border-radius:999px;cursor:pointer;pointer-events:all;box-shadow:0 8px 22px rgba(0,0,0,0.24);
-    `;
-  }
-
-  private inputStyle(): string {
-    return `
-      width:100%;padding:14px 16px;border-radius:14px;border:2px solid rgba(49,80,51,0.25);
-      font-size:18px;font-weight:800;color:#193620;outline:none;background:#fffdf2;
-    `;
-  }
-
-  private progressDots(currentLevel: number, completedLevels: number[]): string {
-    return Array.from({ length: TOTAL_LEVELS }, (_, index) => {
-      const level = index + 1;
-      if (completedLevels.includes(level)) return '●';
-      if (level === currentLevel) return '◉';
-      return '○';
-    }).join(' - ');
-  }
-
-  private maskEmail(email: string): string {
-    const [name, domain] = email.split('@');
-    if (!name || !domain) return email;
-    return `${name.slice(0, 2)}***@${domain}`;
   }
 }
