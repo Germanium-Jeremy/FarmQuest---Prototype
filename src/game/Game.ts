@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { FarmQuestApi, isValidEmail, PlayerSession } from '../api/FarmQuestApi';
+import { AccountNotFoundError, FarmQuestApi, isValidEmail, PlayerSession } from '../api/FarmQuestApi';
+import { GameSocket, LeaderboardEntry, LobbyPlayer } from '../api/GameSocket';
 import { CROP_LABEL, CropType } from '../data/CropType';
 import { MAP_THEMES, MapId, MapTheme } from '../data/MapTheme';
 import { TaskType } from '../data/TaskType';
@@ -7,6 +8,13 @@ import { Player } from '../player/Player';
 import { PlayerController } from '../player/PlayerController';
 import { CharacterType } from '../player/PlayerModel';
 import { HUD } from '../ui/HUD';
+import { CharacterSelectScreen } from '../ui/screens/CharacterSelectScreen';
+import { CompleteScreen } from '../ui/screens/CompleteScreen';
+import { GameOverScreen } from '../ui/screens/GameOverScreen';
+import { LeaderboardScreen } from '../ui/screens/LeaderboardScreen';
+import { LobbyScreen } from '../ui/screens/LobbyScreen';
+import { LoginScreen, LoginMode } from '../ui/screens/LoginScreen';
+import { MapSelectScreen } from '../ui/screens/MapSelectScreen';
 import { Crop } from '../world/Crop';
 import { Interactable } from '../world/Interactable';
 import { NPC } from '../world/NPC';
@@ -14,6 +22,7 @@ import { Seed } from '../world/Seed';
 import { SpawnManager } from '../world/SpawnManager';
 import { WaterSource } from '../world/WaterSource';
 import { World } from '../world/World';
+import { ChallengeGenerator } from './ChallengeGenerator';
 import { ChallengeManager } from './ChallengeManager';
 import { GameState } from './GameState';
 import { GameTask } from './GameTask';
@@ -32,6 +41,7 @@ export class Game {
   private scoreManager = new ScoreManager();
   private challengeManager = new ChallengeManager(this.scoreManager);
   private api = new FarmQuestApi();
+  private socket = new GameSocket();
   private session: PlayerSession | null = null;
   private spawnManager = new SpawnManager('rwanda');
   private state: GameState = GameState.MENU;
@@ -75,10 +85,18 @@ export class Game {
     this.camera.position.set(12, 16, 18);
     this.camera.lookAt(0, 0, 0);
 
-    this.setupLighting();
+    this.hemiLight = this.setupLighting();
     this.scene.add(this.world.group, this.npc.mesh, this.player.mesh, this.sessionGroup);
     this.hud = new HUD(uiOverlay, this.scoreManager);
+    this.loginScreen = new LoginScreen(uiOverlay);
+    this.characterScreen = new CharacterSelectScreen(uiOverlay);
+    this.mapScreen = new MapSelectScreen(uiOverlay);
+    this.lobbyScreen = new LobbyScreen(uiOverlay);
+    this.gameOverScreen = new GameOverScreen(uiOverlay);
+    this.completeScreen = new CompleteScreen(uiOverlay);
+    this.leaderboardScreen = new LeaderboardScreen(uiOverlay);
 
+    this.bindSocket();
     window.addEventListener('resize', () => this.onResize());
     this.showLoginScreen();
   }
@@ -442,7 +460,7 @@ export class Game {
       this.hud.hideTaskModal();
       this.challengeManager.setPaused(false);
       this.onChallengeUpdate();
-    });
+    }, 1, this.challengeManager.getTaskCount());
   }
 
   private onTaskCompleted(completedTask: GameTask, nextTask: GameTask | null): void {
