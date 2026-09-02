@@ -38,7 +38,27 @@ export class ChallengeManager {
     onTaskStarted?: (task: GameTask, isFirstTask: boolean) => void,
     onTaskCompleted?: (completedTask: GameTask, nextTask: GameTask | null) => void,
   ): GameTask[] {
-    this.tasks = this.generator.generate(levelNumber);
+    return this.startWithTasks(
+      this.generator.generate(levelNumber),
+      onTimeout,
+      onUpdate,
+      onComplete,
+      onFeedback,
+      onTaskStarted,
+      onTaskCompleted,
+    );
+  }
+
+  startWithTasks(
+    tasks: GameTask[],
+    onTimeout: () => void,
+    onUpdate: () => void,
+    onComplete: () => void,
+    onFeedback: (message: string) => void,
+    onTaskStarted?: (task: GameTask, isFirstTask: boolean) => void,
+    onTaskCompleted?: (completedTask: GameTask, nextTask: GameTask | null) => void,
+  ): GameTask[] {
+    this.tasks = tasks.map((task) => ({ ...task, currentAmount: 0 }));
     this.currentIndex = 0;
     this.onTimeout = onTimeout;
     this.onUpdate = onUpdate;
