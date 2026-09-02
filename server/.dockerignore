@@ -1,0 +1,7 @@
+server/.env
+server/node_modules
+server/dist
+server/farmquest.db
+.git
+node_modules
+dist

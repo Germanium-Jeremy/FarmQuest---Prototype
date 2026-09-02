@@ -1,12 +1,15 @@
 import * as THREE from 'three';
+import { MapTheme, MAP_THEMES, MapId } from '../data/MapTheme';
 import { CollisionManager } from './CollisionManager';
 
 export class World {
   public group: THREE.Group;
   public bounds = { minX: -20, maxX: 20, minZ: -20, maxZ: 20 };
   public collision: CollisionManager;
+  private theme: MapTheme;
 
-  constructor() {
+  constructor(mapId: MapId = 'rwanda') {
+    this.theme = MAP_THEMES[mapId];
     this.group = new THREE.Group();
     this.collision = new CollisionManager(this.group);
     this.buildTerrain();
@@ -18,19 +21,21 @@ export class World {
     this.buildDecorations();
   }
 
+  getTheme(): MapTheme {
+    return this.theme;
+  }
+
   private buildTerrain(): void {
-    // Main ground
     const groundGeom = new THREE.PlaneGeometry(50, 50);
-    const groundMat = new THREE.MeshLambertMaterial({ color: 0x7ec850 });
+    const groundMat = new THREE.MeshLambertMaterial({ color: this.theme.groundColor });
     const ground = new THREE.Mesh(groundGeom, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.01;
     ground.receiveShadow = true;
     this.group.add(ground);
 
-    // Dirt patches near farm
     const dirtGeom = new THREE.PlaneGeometry(12, 12);
-    const dirtMat = new THREE.MeshLambertMaterial({ color: 0xc4a55a });
+    const dirtMat = new THREE.MeshLambertMaterial({ color: this.theme.dirtColor });
     const dirt = new THREE.Mesh(dirtGeom, dirtMat);
     dirt.rotation.x = -Math.PI / 2;
     dirt.position.set(6, 0, -2);
@@ -39,16 +44,14 @@ export class World {
   }
 
   private buildRoad(): void {
-    // Main horizontal road
     const roadGeom = new THREE.PlaneGeometry(40, 2.5);
-    const roadMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
+    const roadMat = new THREE.MeshLambertMaterial({ color: this.theme.roadColor });
     const road = new THREE.Mesh(roadGeom, roadMat);
     road.rotation.x = -Math.PI / 2;
     road.position.set(0, 0.01, 4);
     road.receiveShadow = true;
     this.group.add(road);
 
-    // Road markings
     for (let i = -18; i <= 18; i += 3) {
       const markGeom = new THREE.PlaneGeometry(1.5, 0.15);
       const markMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
@@ -58,9 +61,8 @@ export class World {
       this.group.add(mark);
     }
 
-    // Vertical path to farm
     const pathGeom = new THREE.PlaneGeometry(2, 10);
-    const pathMat = new THREE.MeshLambertMaterial({ color: 0x9e8b6e });
+    const pathMat = new THREE.MeshLambertMaterial({ color: this.theme.dirtColor });
     const path = new THREE.Mesh(pathGeom, pathMat);
     path.rotation.x = -Math.PI / 2;
     path.position.set(6, 0.01, -1);
@@ -69,20 +71,9 @@ export class World {
   }
 
   private buildFarm(): void {
-    // Farm fence
-    const fenceMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
-    const fencePositions = [
-      { x: 4, z: -6, rx: 0, rz: 4 },
-      { x: 8, z: -6, rx: 0, rz: 4 },
-      { x: 4, z: 2, rx: 0, rz: 4 },
-      { x: 8, z: 2, rx: 0, rz: 4 },
-    ];
-
-    // Simple fence with posts and rails
+    const fenceMat = new THREE.MeshLambertMaterial({ color: this.theme.fenceColor });
     const fenceGeom = new THREE.BoxGeometry(0.06, 0.6, 0.06);
-    const railGeom = new THREE.BoxGeometry(0.04, 0.04, 4.2);
 
-    // Top and bottom fences
     for (const x of [3.5, 8.5]) {
       for (let i = 0; i < 5; i++) {
         const post = new THREE.Mesh(fenceGeom, fenceMat);
@@ -99,22 +90,35 @@ export class World {
       this.group.add(rail2);
     }
 
-    // Farm sign
     const signGeom = new THREE.BoxGeometry(1.5, 0.6, 0.08);
-    const signMat = new THREE.MeshLambertMaterial({ color: 0xdeb887 });
+    const signMat = new THREE.MeshLambertMaterial({ color: this.theme.buildingWallColor });
     const sign = new THREE.Mesh(signGeom, signMat);
     sign.position.set(6, 1.2, -5.8);
     sign.castShadow = true;
     this.group.add(sign);
 
     const postGeom = new THREE.BoxGeometry(0.08, 1.0, 0.08);
-    const postMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+    const postMat = new THREE.MeshLambertMaterial({ color: this.theme.fenceColor });
     const signPost = new THREE.Mesh(postGeom, postMat);
     signPost.position.set(6, 0.6, -5.8);
     this.group.add(signPost);
   }
 
   private buildForest(): void {
+    switch (this.theme.id) {
+      case 'sudan':
+        this.buildSudanForest();
+        break;
+      case 'seychelles':
+        this.buildSeychellesForest();
+        break;
+      default:
+        this.buildRwandaForest();
+        break;
+    }
+  }
+
+  private buildRwandaForest(): void {
     const treePositions = [
       new THREE.Vector3(-12, 0, -8),
       new THREE.Vector3(-10, 0, -10),
@@ -135,19 +139,68 @@ export class World {
     }
   }
 
+  private buildSudanForest(): void {
+    // Sparse dry trees
+    const sparsePositions = [
+      new THREE.Vector3(-12, 0, -8),
+      new THREE.Vector3(-14, 0, -10),
+      new THREE.Vector3(-9, 0, -12),
+      new THREE.Vector3(-16, 0, -6),
+    ];
+    for (const pos of sparsePositions) {
+      this.createTree(pos);
+    }
+    // Cacti
+    const cactusPositions = [
+      new THREE.Vector3(-10, 0, -5),
+      new THREE.Vector3(-7, 0, -9),
+      new THREE.Vector3(-15, 0, -12),
+      new THREE.Vector3(-11, 0, -3),
+      new THREE.Vector3(-8, 0, -14),
+    ];
+    for (const pos of cactusPositions) {
+      this.createCactus(pos);
+    }
+    // Sand dunes
+    const dunePositions = [
+      new THREE.Vector3(-13, 0, -4),
+      new THREE.Vector3(-6, 0, -11),
+      new THREE.Vector3(-16, 0, -12),
+      new THREE.Vector3(-9, 0, -6),
+    ];
+    for (const pos of dunePositions) {
+      this.createSandDune(pos, 0.8 + Math.random() * 0.5);
+    }
+  }
+
+  private buildSeychellesForest(): void {
+    // Palm trees
+    const palmPositions = [
+      new THREE.Vector3(-10, 0, -6),
+      new THREE.Vector3(-13, 0, -8),
+      new THREE.Vector3(-8, 0, -10),
+      new THREE.Vector3(-15, 0, -5),
+      new THREE.Vector3(-11, 0, -12),
+      new THREE.Vector3(-7, 0, -4),
+      new THREE.Vector3(-14, 0, -14),
+      new THREE.Vector3(-9, 0, -13),
+    ];
+    for (const pos of palmPositions) {
+      this.createPalmTree(pos);
+    }
+  }
+
   private createTree(pos: THREE.Vector3): void {
     const tree = new THREE.Group();
 
-    // Trunk
     const trunkGeom = new THREE.CylinderGeometry(0.12, 0.18, 1.2, 6);
-    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+    const trunkMat = new THREE.MeshLambertMaterial({ color: this.theme.treeTrunkColor });
     const trunk = new THREE.Mesh(trunkGeom, trunkMat);
     trunk.position.y = 0.6;
     trunk.castShadow = true;
     tree.add(trunk);
 
-    // Foliage layers
-    const foliageColors = [0x228B22, 0x2d8b2d, 0x1a7a1a];
+    const foliageColors = this.theme.treeFoliageColors;
     const sizes = [
       { r: 0.9, h: 1.0, y: 1.6 },
       { r: 0.7, h: 0.9, y: 2.2 },
@@ -156,7 +209,7 @@ export class World {
 
     sizes.forEach((s, i) => {
       const geom = new THREE.ConeGeometry(s.r, s.h, 6);
-      const mat = new THREE.MeshLambertMaterial({ color: foliageColors[i] });
+      const mat = new THREE.MeshLambertMaterial({ color: foliageColors[i % foliageColors.length] });
       const foliage = new THREE.Mesh(geom, mat);
       foliage.position.y = s.y;
       foliage.castShadow = true;
@@ -168,19 +221,92 @@ export class World {
     this.collision.addBox(`tree-${pos.x}-${pos.z}`, new THREE.Vector3(pos.x, 0.8, pos.z), new THREE.Vector3(0.72, 1.6, 0.72));
   }
 
+  private createPalmTree(pos: THREE.Vector3): void {
+    const tree = new THREE.Group();
+
+    const trunkGeom = new THREE.CylinderGeometry(0.1, 0.15, 2.5, 6);
+    const trunkMat = new THREE.MeshLambertMaterial({ color: this.theme.treeTrunkColor });
+    const trunk = new THREE.Mesh(trunkGeom, trunkMat);
+    trunk.position.y = 1.25;
+    trunk.rotation.z = 0.1;
+    trunk.castShadow = true;
+    tree.add(trunk);
+
+    const frondColors = this.theme.treeFoliageColors;
+    for (let i = 0; i < 5; i++) {
+      const angle = (i / 5) * Math.PI * 2;
+      const frond = new THREE.Mesh(
+        new THREE.ConeGeometry(0.8, 1.2, 4),
+        new THREE.MeshLambertMaterial({ color: frondColors[i % frondColors.length] }),
+      );
+      frond.position.set(Math.cos(angle) * 0.5, 2.6, Math.sin(angle) * 0.5);
+      frond.rotation.z = Math.cos(angle) * 0.6;
+      frond.rotation.x = Math.sin(angle) * 0.6;
+      frond.castShadow = true;
+      tree.add(frond);
+    }
+
+    tree.position.copy(pos);
+    this.group.add(tree);
+    this.collision.addBox(`palm-${pos.x}-${pos.z}`, new THREE.Vector3(pos.x, 1.0, pos.z), new THREE.Vector3(0.5, 2.0, 0.5));
+  }
+
+  private createCactus(pos: THREE.Vector3): void {
+    const cactus = new THREE.Group();
+
+    const stemGeom = new THREE.CylinderGeometry(0.12, 0.15, 1.2, 6);
+    const stemMat = new THREE.MeshLambertMaterial({ color: 0x2e7d32 });
+    const stem = new THREE.Mesh(stemGeom, stemMat);
+    stem.position.y = 0.6;
+    stem.castShadow = true;
+    cactus.add(stem);
+
+    const armGeom = new THREE.CylinderGeometry(0.08, 0.1, 0.5, 5);
+    const arm = new THREE.Mesh(armGeom, stemMat);
+    arm.position.set(0.2, 0.8, 0);
+    arm.rotation.z = -0.5;
+    arm.castShadow = true;
+    cactus.add(arm);
+
+    for (let i = 0; i < 6; i++) {
+      const spine = new THREE.Mesh(
+        new THREE.ConeGeometry(0.015, 0.1, 3),
+        new THREE.MeshLambertMaterial({ color: 0x8bc34a }),
+      );
+      const angle = (i / 6) * Math.PI * 2;
+      spine.position.set(Math.cos(angle) * 0.15, 0.4 + (i % 3) * 0.25, Math.sin(angle) * 0.15);
+      spine.rotation.z = Math.cos(angle) * 1.2;
+      spine.rotation.x = Math.sin(angle) * 1.2;
+      cactus.add(spine);
+    }
+
+    cactus.position.copy(pos);
+    this.group.add(cactus);
+    this.collision.addBox(`cactus-${pos.x}-${pos.z}`, new THREE.Vector3(pos.x, 0.5, pos.z), new THREE.Vector3(0.5, 1.0, 0.5));
+  }
+
+  private createSandDune(pos: THREE.Vector3, scale = 1): void {
+    const duneGeom = new THREE.SphereGeometry(1.5 * scale, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+    const duneMat = new THREE.MeshLambertMaterial({ color: this.theme.groundColor });
+    const dune = new THREE.Mesh(duneGeom, duneMat);
+    dune.position.copy(pos);
+    dune.position.y = 0;
+    dune.scale.y = 0.3;
+    dune.receiveShadow = true;
+    this.group.add(dune);
+  }
+
   private buildRiver(): void {
-    // River on the right side
     const riverGeom = new THREE.PlaneGeometry(3, 30);
-    const riverMat = new THREE.MeshLambertMaterial({ color: 0x3498db, transparent: true, opacity: 0.8 });
+    const riverMat = new THREE.MeshLambertMaterial({ color: this.theme.waterColor, transparent: true, opacity: this.theme.waterOpacity });
     const river = new THREE.Mesh(riverGeom, riverMat);
     river.rotation.x = -Math.PI / 2;
     river.position.set(16, 0.02, 0);
     river.receiveShadow = true;
     this.group.add(river);
 
-    // River banks
     const bankGeom = new THREE.PlaneGeometry(2, 30);
-    const bankMat = new THREE.MeshLambertMaterial({ color: 0x9e8b6e });
+    const bankMat = new THREE.MeshLambertMaterial({ color: this.theme.dirtColor });
     const leftBank = new THREE.Mesh(bankGeom, bankMat);
     leftBank.rotation.x = -Math.PI / 2;
     leftBank.position.set(13.5, 0.01, 0);
@@ -188,17 +314,13 @@ export class World {
   }
 
   private buildBuildings(): void {
-    // Small farmhouse
-    this.createBuilding(new THREE.Vector3(-3, 0, -8), 0xdeb887, 2.5, 2, 2, 'Farmhouse');
-
-    // Barn
-    this.createBuilding(new THREE.Vector3(-3, 0, 8), 0xcd5c5c, 3, 2.5, 2.5, 'Barn');
+    this.createBuilding(new THREE.Vector3(-3, 0, -8), this.theme.buildingWallColor, 2.5, 2, 2, 'Farmhouse');
+    this.createBuilding(new THREE.Vector3(-3, 0, 8), this.theme.id === 'sudan' ? 0xd2b48c : 0xcd5c5c, 3, 2.5, 2.5, 'Barn');
   }
 
   private createBuilding(pos: THREE.Vector3, color: number, w: number, h: number, d: number, _name: string): void {
     const building = new THREE.Group();
 
-    // Walls
     const wallGeom = new THREE.BoxGeometry(w, h, d);
     const wallMat = new THREE.MeshLambertMaterial({ color });
     const walls = new THREE.Mesh(wallGeom, wallMat);
@@ -207,7 +329,6 @@ export class World {
     walls.receiveShadow = true;
     building.add(walls);
 
-    // Roof
     const roofShape = new THREE.Shape();
     roofShape.moveTo(-w / 2 - 0.2, 0);
     roofShape.lineTo(0, 1);
@@ -215,20 +336,18 @@ export class World {
     roofShape.lineTo(-w / 2 - 0.2, 0);
 
     const roofGeom = new THREE.ExtrudeGeometry(roofShape, { depth: d + 0.4, bevelEnabled: false });
-    const roofMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+    const roofMat = new THREE.MeshLambertMaterial({ color: this.theme.buildingRoofColor });
     const roof = new THREE.Mesh(roofGeom, roofMat);
     roof.position.set(0, h, -d / 2 - 0.2);
     roof.castShadow = true;
     building.add(roof);
 
-    // Door
     const doorGeom = new THREE.BoxGeometry(0.6, 1.2, 0.05);
     const doorMat = new THREE.MeshLambertMaterial({ color: 0x5c3317 });
     const door = new THREE.Mesh(doorGeom, doorMat);
     door.position.set(0, 0.6, d / 2 + 0.03);
     building.add(door);
 
-    // Window
     const winGeom = new THREE.BoxGeometry(0.5, 0.5, 0.05);
     const winMat = new THREE.MeshLambertMaterial({ color: 0x87ceeb, transparent: true, opacity: 0.6 });
     const win = new THREE.Mesh(winGeom, winMat);
@@ -241,6 +360,20 @@ export class World {
   }
 
   private buildDecorations(): void {
+    switch (this.theme.id) {
+      case 'sudan':
+        this.buildSudanDecorations();
+        break;
+      case 'seychelles':
+        this.buildSeychellesDecorations();
+        break;
+      default:
+        this.buildRwandaDecorations();
+        break;
+    }
+  }
+
+  private buildRwandaDecorations(): void {
     // Hay bales near barn
     const hayPositions = [
       new THREE.Vector3(-5, 0, 8),
@@ -266,7 +399,6 @@ export class World {
       new THREE.Vector3(-1, 0, 7),
       new THREE.Vector3(8, 0, 7),
     ];
-
     const flowerColors = [0xff69b4, 0xffd700, 0xff4500, 0x9370db];
 
     for (const pos of flowerPositions) {
@@ -277,7 +409,7 @@ export class World {
         flower.position.set(
           pos.x + (Math.random() - 0.5) * 1.5,
           0.1,
-          pos.z + (Math.random() - 0.5) * 1.5
+          pos.z + (Math.random() - 0.5) * 1.5,
         );
         this.group.add(flower);
       }
@@ -289,7 +421,6 @@ export class World {
       new THREE.Vector3(13, 0, -1),
       new THREE.Vector3(12.5, 0, 6),
     ];
-
     for (const pos of rockPositions) {
       const rockGeom = new THREE.DodecahedronGeometry(0.3, 0);
       const rockMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
@@ -300,5 +431,110 @@ export class World {
       this.group.add(rock);
       this.collision.addBox(`rock-${pos.x}-${pos.z}`, new THREE.Vector3(pos.x, 0.35, pos.z), new THREE.Vector3(0.8, 0.7, 0.8));
     }
+  }
+
+  private buildSudanDecorations(): void {
+    // Scattered rocks
+    const rockPositions = [
+      new THREE.Vector3(-5, 0, -3),
+      new THREE.Vector3(2, 0, 5),
+      new THREE.Vector3(10, 0, -2),
+      new THREE.Vector3(-8, 0, 4),
+      new THREE.Vector3(7, 0, 8),
+    ];
+    for (const pos of rockPositions) {
+      const rockGeom = new THREE.DodecahedronGeometry(0.25 + Math.random() * 0.2, 0);
+      const rockMat = new THREE.MeshLambertMaterial({ color: 0xa0906e });
+      const rock = new THREE.Mesh(rockGeom, rockMat);
+      rock.position.copy(pos);
+      rock.position.y = 0.12;
+      rock.castShadow = true;
+      this.group.add(rock);
+      this.collision.addBox(`rock-${pos.x}-${pos.z}`, new THREE.Vector3(pos.x, 0.3, pos.z), new THREE.Vector3(0.6, 0.6, 0.6));
+    }
+
+    // Sparse dry bushes
+    const bushPositions = [
+      new THREE.Vector3(3, 0, 6),
+      new THREE.Vector3(-4, 0, 2),
+      new THREE.Vector3(10, 0, 7),
+    ];
+    for (const pos of bushPositions) {
+      const bush = new THREE.Mesh(
+        new THREE.SphereGeometry(0.3, 5, 4),
+        new THREE.MeshLambertMaterial({ color: 0x8B7355 }),
+      );
+      bush.position.copy(pos);
+      bush.position.y = 0.2;
+      bush.scale.y = 0.6;
+      bush.castShadow = true;
+      this.group.add(bush);
+    }
+  }
+
+  private buildSeychellesDecorations(): void {
+    // Beach umbrellas
+    const umbrellaPositions = [
+      new THREE.Vector3(10, 0, 6),
+      new THREE.Vector3(13, 0, 3),
+      new THREE.Vector3(8, 0, 8),
+    ];
+    for (const pos of umbrellaPositions) {
+      this.createBeachUmbrella(pos);
+    }
+
+    // Shell decorations
+    const shellPositions = [
+      new THREE.Vector3(12, 0, 5),
+      new THREE.Vector3(14, 0, 2),
+      new THREE.Vector3(11, 0, 8),
+    ];
+    for (const pos of shellPositions) {
+      const shell = new THREE.Mesh(
+        new THREE.SphereGeometry(0.08, 5, 4),
+        new THREE.MeshLambertMaterial({ color: 0xfff8dc }),
+      );
+      shell.position.copy(pos);
+      shell.position.y = 0.06;
+      shell.scale.y = 0.4;
+      this.group.add(shell);
+    }
+
+    // Coral rock formations
+    const coralPositions = [
+      new THREE.Vector3(13, 0, -2),
+      new THREE.Vector3(14, 0, 8),
+      new THREE.Vector3(12, 0, -5),
+    ];
+    for (const pos of coralPositions) {
+      const coralGeom = new THREE.DodecahedronGeometry(0.35, 0);
+      const coralMat = new THREE.MeshLambertMaterial({ color: 0xe8836b });
+      const coral = new THREE.Mesh(coralGeom, coralMat);
+      coral.position.copy(pos);
+      coral.position.y = 0.2;
+      coral.castShadow = true;
+      this.group.add(coral);
+      this.collision.addBox(`coral-${pos.x}-${pos.z}`, new THREE.Vector3(pos.x, 0.4, pos.z), new THREE.Vector3(0.8, 0.8, 0.8));
+    }
+  }
+
+  private createBeachUmbrella(pos: THREE.Vector3): void {
+    const umbrella = new THREE.Group();
+
+    const poleGeom = new THREE.CylinderGeometry(0.04, 0.04, 2, 6);
+    const poleMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+    const pole = new THREE.Mesh(poleGeom, poleMat);
+    pole.position.y = 1;
+    umbrella.add(pole);
+
+    const canopyGeom = new THREE.ConeGeometry(1.2, 0.5, 8);
+    const canopyMat = new THREE.MeshLambertMaterial({ color: 0xe74c3c });
+    const canopy = new THREE.Mesh(canopyGeom, canopyMat);
+    canopy.position.y = 2;
+    canopy.castShadow = true;
+    umbrella.add(canopy);
+
+    umbrella.position.copy(pos);
+    this.group.add(umbrella);
   }
 }

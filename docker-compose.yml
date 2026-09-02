@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # Express + WebSocket backend
+  farmquest-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: farmquest-server
+    environment:
+      - PORT=3001
+      - DATABASE_URL=/app/data/farmquest.db
+      - EMAIL_PROVIDER=development
+      - ALLOWED_ORIGINS=http://localhost,http://localhost:80
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-dev-admin-token-change-me}
+    volumes:
+      - db-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Nginx reverse proxy + static file serving
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: farmquest-nginx
+    ports:
+      - "${PORT:-80}:80"
+    depends_on:
+      farmquest-server:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db-data:
+    driver: local

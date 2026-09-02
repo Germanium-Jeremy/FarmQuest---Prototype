@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { FarmQuestApi, isValidEmail, PlayerSession } from '../api/FarmQuestApi';
+import { GameSocket, GameTask as SocketGameTask } from '../api/GameSocket';
+import { CharacterType, CHARACTER_OPTIONS } from '../data/CharacterType';
 import { CROP_LABEL, CropType } from '../data/CropType';
+import { MapId, MAP_THEMES, MAP_OPTIONS } from '../data/MapTheme';
 import { TaskType } from '../data/TaskType';
 import { Player } from '../player/Player';
 import { PlayerController } from '../player/PlayerController';
@@ -15,7 +18,6 @@ import { World } from '../world/World';
 import { ChallengeManager } from './ChallengeManager';
 import { GameState } from './GameState';
 import { GameTask } from './GameTask';
-import { LevelManager } from './LevelManager';
 import { ScoreManager } from './ScoreManager';
 
 export class Game {
@@ -24,17 +26,17 @@ export class Game {
   private camera: THREE.OrthographicCamera;
   private clock = new THREE.Clock();
   private hud: HUD;
-  private player = new Player();
+  private player!: Player;
   private playerController = new PlayerController();
-  private world = new World();
-  private npc = new NPC(new THREE.Vector3(-3, 0, 1.6));
+  private world!: World;
+  private npc!: NPC;
   private scoreManager = new ScoreManager();
   private challengeManager = new ChallengeManager(this.scoreManager);
-  private levelManager = new LevelManager();
   private api = new FarmQuestApi();
+  private socket = new GameSocket();
   private session: PlayerSession | null = null;
-  private spawnManager = new SpawnManager();
-  private state: GameState = GameState.MENU;
+  private spawnManager!: SpawnManager;
+  private state: GameState = GameState.LOGIN;
   private sessionGroup = new THREE.Group();
   private seeds: Seed[] = [];
   private crops: Crop[] = [];
@@ -44,6 +46,12 @@ export class Game {
   private plantQueue: CropType[] = [];
   private waterFound = false;
   private requiredWaterPerCrop = 1;
+  private gameStartTime = 0;
+
+  // Event edition state
+  private selectedCharacterType: CharacterType = 'male';
+  private selectedMapId: MapId = 'rwanda';
+  private lobbyPlayerCount = 0;
 
   constructor(canvas: HTMLCanvasElement, uiOverlay: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -70,61 +78,209 @@ export class Game {
     this.camera.lookAt(0, 0, 0);
 
     this.setupLighting();
+
+    // Create default world and player
+    this.world = new World('rwanda');
+    this.npc = new NPC(new THREE.Vector3(-3, 0, 1.6), 'rwanda');
+    this.player = new Player('male');
+    this.spawnManager = new SpawnManager('rwanda');
+
     this.scene.add(this.world.group, this.npc.mesh, this.player.mesh, this.sessionGroup);
     this.hud = new HUD(uiOverlay, this.scoreManager);
 
     window.addEventListener('resize', () => this.onResize());
-    this.hud.showRegistration((email, displayName) => this.registerPlayer(email, displayName));
+
+    // Setup WebSocket handlers
+    this.setupSocketHandlers();
+
+    // Start with login screen
+    this.showLoginScreen();
   }
 
-  private async registerPlayer(email: string, displayName?: string): Promise<void> {
+  private setupSocketHandlers(): void {
+    this.socket.on('lobby_update', (data) => {
+      const msg = data as { count: number };
+      this.lobbyPlayerCount = msg.count;
+      if (this.state === GameState.LOBBY) {
+        this.hud.showLobby(
+          this.lobbyPlayerCount,
+          this.session?.displayName ?? 'Player',
+          this.selectedCharacterType,
+          this.selectedMapId,
+        );
+      }
+    });
+
+    this.socket.on('game_start', (data) => {
+      const msg = data as { instanceId: string; tasks: SocketGameTask[] };
+      this.startGameWithTasks(msg.tasks);
+    });
+
+    this.socket.on('game_finished', (data) => {
+      const msg = data as { leaderboard: Array<{ rank: number; displayName: string; score: number; completionTime: number }>; yourRank: number };
+      this.state = GameState.LEADERBOARD;
+      const isTopTen = msg.yourRank <= 10;
+      this.hud.showLeaderboard(
+        msg.leaderboard.map((e) => ({
+          rank: e.rank,
+          displayName: e.displayName,
+          score: e.score,
+          completionTime: e.completionTime,
+        })),
+        msg.yourRank,
+        this.scoreManager.getScore(),
+        isTopTen,
+        () => this.goToCharacterSelect(),
+      );
+    });
+
+    this.socket.on('error', (data) => {
+      const msg = data as { message: string };
+      this.hud.showFeedback(`Error: ${msg.message}`);
+    });
+  }
+
+  private showLoginScreen(): void {
+    this.state = GameState.LOGIN;
+    this.hud.showLogin(
+      (email) => this.handleLogin(email),
+      (email, displayName) => this.handleRegister(email, displayName),
+    );
+  }
+
+  private async handleLogin(email: string): Promise<void> {
     if (!isValidEmail(email)) {
-      this.hud.showRegistration((nextEmail, nextName) => this.registerPlayer(nextEmail, nextName), 'Please enter a valid email address.');
+      this.hud.showLogin(
+        (e) => this.handleLogin(e),
+        (e, d) => this.handleRegister(e, d),
+        'Please enter a valid email address.',
+      );
       return;
     }
 
-    this.hud.showRegistration((nextEmail, nextName) => this.registerPlayer(nextEmail, nextName), '', true);
+    try {
+      this.session = await this.api.registerPlayer(email);
+      this.goToCharacterSelect();
+    } catch (error) {
+      console.error(error);
+      this.hud.showLogin(
+        (e) => this.handleLogin(e),
+        (e, d) => this.handleRegister(e, d),
+        "We couldn't connect. Please check your connection and try again.",
+      );
+    }
+  }
+
+  private async handleRegister(email: string, displayName: string): Promise<void> {
+    if (!isValidEmail(email)) {
+      this.hud.showLogin(
+        (e) => this.handleLogin(e),
+        (e, d) => this.handleRegister(e, d),
+        'Please enter a valid email address.',
+      );
+      return;
+    }
+
     try {
       this.session = await this.api.registerPlayer(email, displayName);
-      this.levelManager.resetToFirstLevel();
-      this.scoreManager.reset();
-      this.startLevel();
+      this.goToCharacterSelect();
     } catch (error) {
       console.error(error);
-      this.hud.showRegistration((nextEmail, nextName) => this.registerPlayer(nextEmail, nextName), "We couldn't start your game. Please check your connection and try again.");
+      this.hud.showLogin(
+        (e) => this.handleLogin(e),
+        (e, d) => this.handleRegister(e, d),
+        "We couldn't create your account. Please try again.",
+      );
     }
   }
 
-  private async replayAfterCompletion(): Promise<void> {
-    if (!this.session) {
-      this.hud.showRegistration((email, displayName) => this.registerPlayer(email, displayName));
-      return;
-    }
-
-    try {
-      this.session = await this.api.startNewSession(this.session.playerId, this.session.email, this.session.displayName);
-      this.levelManager.resetToFirstLevel();
-      this.scoreManager.reset();
-      this.startLevel();
-    } catch (error) {
-      console.error(error);
-      this.hud.showRegistration((email, displayName) => this.registerPlayer(email, displayName), "We couldn't start a new session. Please try again.");
-    }
+  private goToCharacterSelect(): void {
+    this.state = GameState.CHARACTER_SELECT;
+    this.hud.showCharacterSelect(
+      CHARACTER_OPTIONS.map((opt) => ({ type: opt.type, label: opt.label, icon: opt.icon })),
+      (type) => {
+        this.selectedCharacterType = type as CharacterType;
+        this.goToMapSelect();
+      },
+    );
   }
 
-  private startLevel(): void {
+  private goToMapSelect(): void {
+    this.state = GameState.MAP_SELECT;
+    this.hud.showMapSelect(
+      MAP_OPTIONS,
+      (id) => {
+        this.selectedMapId = id as MapId;
+        this.goToLobby();
+      },
+    );
+  }
+
+  private goToLobby(): void {
+    this.state = GameState.LOBBY;
+    this.lobbyPlayerCount = 1;
+
+    // Connect WebSocket
+    if (this.session) {
+      this.socket.connect(this.session.sessionId);
+      // Send join_lobby after a short delay to ensure WS is connected
+      setTimeout(() => {
+        if (this.socket.isConnected()) {
+          this.socket.joinLobby(
+            this.session!.playerId,
+            this.session!.displayName ?? 'Player',
+            this.selectedCharacterType,
+            this.selectedMapId,
+          );
+        }
+      }, 500);
+    }
+
+    this.hud.showLobby(
+      this.lobbyPlayerCount,
+      this.session?.displayName ?? 'Player',
+      this.selectedCharacterType,
+      this.selectedMapId,
+    );
+  }
+
+  private startGameWithTasks(socketTasks: SocketGameTask[]): void {
+    // Convert socket tasks to internal GameTask format
+    const tasks: GameTask[] = socketTasks.map((t) => ({
+      id: t.id,
+      type: t.type as TaskType,
+      cropType: t.cropType as CropType | undefined,
+      targetAmount: t.targetAmount,
+      currentAmount: t.currentAmount,
+      timeLimit: t.timeLimit,
+      scoreReward: t.scoreReward,
+      description: t.description,
+    }));
+
+    this.applyMapTheme(this.selectedMapId);
+    this.world = new World(this.selectedMapId);
+    this.scene.add(this.world.group);
+
+    this.npc = new NPC(new THREE.Vector3(-3, 0, 1.6), this.selectedMapId);
+    this.scene.add(this.npc.mesh);
+
+    this.player = new Player(this.selectedCharacterType);
+    this.scene.add(this.player.mesh);
+
+    this.spawnManager = new SpawnManager(this.selectedMapId);
+
     this.state = GameState.PLAYING;
+    this.scoreManager.reset();
     this.challengeManager.reset();
-    this.levelManager.beginCurrentLevel(this.scoreManager.getScore());
     this.clearSessionObjects();
     this.seedInventory.clear();
     this.plantQueue = [];
     this.waterFound = false;
     this.player.mesh.position.set(0, 0, 6);
-    const level = this.levelManager.getCurrentLevel();
+    this.gameStartTime = performance.now();
 
-    const tasks = this.challengeManager.start(
-      level.id,
+    this.challengeManager.startWithTasks(
+      tasks,
       () => this.onTimeout(),
       () => this.onChallengeUpdate(),
       () => this.onAllComplete(),
@@ -132,9 +288,55 @@ export class Game {
       (task, isFirstTask) => this.onTaskStarted(task, isFirstTask),
       (completedTask, nextTask) => this.onTaskCompleted(completedTask, nextTask),
     );
+
     this.requiredWaterPerCrop = this.getRequiredWaterPerCrop(tasks);
     this.createSessionObjects(tasks);
     this.hud.hideScreen();
+  }
+
+  // Fallback: start with local challenge generation (original 3-level flow)
+  private startLocalGame(): void {
+    this.state = GameState.PLAYING;
+    this.scoreManager.reset();
+    this.challengeManager.reset();
+    this.clearSessionObjects();
+    this.seedInventory.clear();
+    this.plantQueue = [];
+    this.waterFound = false;
+    this.player.mesh.position.set(0, 0, 6);
+    this.gameStartTime = performance.now();
+
+    const tasks = this.challengeManager.start(
+      1,
+      () => this.onTimeout(),
+      () => this.onChallengeUpdate(),
+      () => this.onAllComplete(),
+      (message) => this.hud.showFeedback(message),
+      (task, isFirstTask) => this.onTaskStarted(task, isFirstTask),
+      (completedTask, nextTask) => this.onTaskCompleted(completedTask, nextTask),
+    );
+
+    this.requiredWaterPerCrop = this.getRequiredWaterPerCrop(tasks);
+    this.createSessionObjects(tasks);
+    this.hud.hideScreen();
+  }
+
+  private applyMapTheme(mapId: MapId): void {
+    const theme = MAP_THEMES[mapId];
+    this.renderer.setClearColor(theme.skyColor);
+    this.scene.fog = new THREE.Fog(theme.fogColor, 38, 70);
+    // Update lighting
+    const lights = this.scene.children.filter((c) => c.isLight) as THREE.Light[];
+    for (const light of lights) {
+      if (light instanceof THREE.HemisphereLight) {
+        light.color.setHex(theme.hemisphereSkyColor);
+        light.groundColor.setHex(theme.hemisphereGroundColor);
+      } else if (light instanceof THREE.AmbientLight) {
+        light.intensity = theme.ambientIntensity;
+      } else if (light instanceof THREE.DirectionalLight) {
+        light.intensity = theme.sunIntensity;
+      }
+    }
   }
 
   update(): void {
@@ -344,52 +546,38 @@ export class Game {
 
   private onTimeout(): void {
     this.state = GameState.GAME_OVER;
-    this.hud.showLevelFailed(
-      this.levelManager.getCurrentLevel(),
-      this.challengeManager.getCompletedTaskCount(),
-      this.challengeManager.getTaskCount(),
-      this.scoreManager.getScore(),
-      () => this.retryLevel(),
-      () => {
-        void this.restartFarmQuest();
-      },
+    this.hud.showGameOver(
+      this.challengeManager.getCurrentTask(),
+      () => this.goToCharacterSelect(),
     );
   }
 
-  private async onAllComplete(): Promise<void> {
-    const level = this.levelManager.getCurrentLevel();
-    const levelScore = this.levelManager.getLevelScore(this.scoreManager.getScore());
-    try {
-      if (this.session) await this.api.completeLevel(this.session.sessionId, level.id, levelScore);
-    } catch (error) {
-      console.error(error);
-      this.hud.showFeedback('Level saved locally. Backend sync can be retried later.');
+  private onAllComplete(): void {
+    this.state = GameState.COMPLETE;
+    this.scoreManager.add(300);
+    const completionTime = (performance.now() - this.gameStartTime) / 1000;
+
+    // Send completion to server via WebSocket
+    if (this.session && this.socket.isConnected()) {
+      this.socket.gameComplete(this.session.playerId, this.scoreManager.getScore(), completionTime);
     }
 
-    this.levelManager.completeCurrentLevel();
-    const completedLevels = this.levelManager.getCompletedLevels();
+    // Also try REST API
     if (this.session) {
-      this.session.completedLevels = completedLevels;
-      this.session.totalScore = this.scoreManager.getScore();
+      void this.api.completeGame(this.session.sessionId, this.scoreManager.getScore()).catch(() => {});
     }
 
-    if (this.levelManager.hasNextLevel()) {
-      const nextLevel = this.levelManager.getAllLevels().find((item) => item.id === level.id + 1) ?? null;
-      this.hud.showLevelComplete(level, nextLevel, levelScore, this.scoreManager.getScore(), () => {
-        this.levelManager.advanceToNextLevel();
-        if (this.session) this.session.currentLevel = this.levelManager.getCurrentLevel().id;
-        this.startLevel();
-      });
-      return;
-    }
-
-    await this.completeGame();
+    const email = this.session?.email ?? '';
+    this.hud.showComplete(email, true, () => {
+      this.goToCharacterSelect();
+    });
   }
 
   private onTaskStarted(task: GameTask, isFirstTask: boolean): void {
     if (!isFirstTask) return;
     this.challengeManager.setPaused(true);
-    this.hud.showLevelIntro(this.levelManager.getCurrentLevel(), task, () => {
+    // For server-provided tasks, just start immediately with a brief intro
+    this.hud.showFirstTask(task, () => {
       this.hud.hideTaskModal();
       this.challengeManager.setPaused(false);
       this.onChallengeUpdate();
@@ -409,53 +597,9 @@ export class Game {
     this.hud.updateHUD(
       this.challengeManager.getCurrentTask(),
       this.challengeManager.getTimeRemaining(),
-      this.levelManager.getCurrentLevel(),
-      this.levelManager.getCompletedLevels(),
+      this.challengeManager.getCompletedTaskCount(),
+      this.challengeManager.getTaskCount(),
     );
-  }
-
-  private retryLevel(): void {
-    const levelStartScore = this.scoreManager.getScore() - this.levelManager.getLevelScore(this.scoreManager.getScore());
-    this.scoreManager.setScore(levelStartScore);
-    this.startLevel();
-  }
-
-  private async restartFarmQuest(): Promise<void> {
-    this.scoreManager.reset();
-    this.levelManager.resetToFirstLevel();
-    if (this.session) {
-      try {
-        this.session = await this.api.startNewSession(this.session.playerId, this.session.email, this.session.displayName);
-      } catch (error) {
-        console.error(error);
-        this.session.currentLevel = 1;
-        this.session.completedLevels = [];
-        this.session.totalScore = 0;
-      }
-    }
-    this.startLevel();
-  }
-
-  private async completeGame(): Promise<void> {
-    this.state = GameState.COMPLETE;
-    this.scoreManager.add(300);
-    const completedLevels = this.levelManager.getCompletedLevels();
-    const email = this.session?.email ?? '';
-    this.hud.showRewardPreparing(email);
-
-    let emailSent = false;
-    try {
-      if (this.session) {
-        const result = await this.api.completeGame(this.session.sessionId, this.scoreManager.getScore());
-        emailSent = result.emailSent;
-      }
-    } catch (error) {
-      console.error(error);
-    }
-
-    this.hud.showComplete(email, emailSent, completedLevels, () => {
-      void this.replayAfterCompletion();
-    });
   }
 
   private setupLighting(): void {

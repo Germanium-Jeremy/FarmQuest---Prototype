@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { CharacterType } from '../data/CharacterType';
+import { CharacterParts, PlayerModel } from './PlayerModel';
 
 export class Player {
   public mesh: THREE.Group;
@@ -12,81 +14,17 @@ export class Player {
   private leftLegPivot: THREE.Group;
   private rightLegPivot: THREE.Group;
   private runTime = 0;
+  private parts: CharacterParts;
 
-  constructor() {
-    this.mesh = new THREE.Group();
-
-    // Body
-    const bodyGeom = new THREE.BoxGeometry(0.5, 0.8, 0.3);
-    const bodyMat = new THREE.MeshLambertMaterial({ color: 0x4a90d9 });
-    this.body = new THREE.Mesh(bodyGeom, bodyMat);
-    this.body.position.y = 0.7;
-    this.body.castShadow = true;
-    this.mesh.add(this.body);
-
-    // Head
-    const headGeom = new THREE.SphereGeometry(0.22, 8, 6);
-    const headMat = new THREE.MeshLambertMaterial({ color: 0xf5cba7 });
-    const head = new THREE.Mesh(headGeom, headMat);
-    head.position.y = 1.35;
-    head.castShadow = true;
-    this.mesh.add(head);
-
-    // Hat
-    const hatBrimGeom = new THREE.CylinderGeometry(0.3, 0.3, 0.05, 8);
-    const hatMat = new THREE.MeshLambertMaterial({ color: 0xd4a017 });
-    const hatBrim = new THREE.Mesh(hatBrimGeom, hatMat);
-    hatBrim.position.y = 1.5;
-    this.mesh.add(hatBrim);
-
-    const hatTopGeom = new THREE.CylinderGeometry(0.18, 0.2, 0.2, 8);
-    const hatTop = new THREE.Mesh(hatTopGeom, hatMat);
-    hatTop.position.y = 1.62;
-    this.mesh.add(hatTop);
-
-    const limbMat = new THREE.MeshLambertMaterial({ color: 0x2f6fb3 });
-    const legMat = new THREE.MeshLambertMaterial({ color: 0x315033 });
-    const handMat = new THREE.MeshLambertMaterial({ color: 0xf5cba7 });
-
-    this.leftArmPivot = this.createLimbPivot(-0.38, 1.02, 0, new THREE.BoxGeometry(0.16, 0.62, 0.16), limbMat, -0.32);
-    this.rightArmPivot = this.createLimbPivot(0.38, 1.02, 0, new THREE.BoxGeometry(0.16, 0.62, 0.16), limbMat, -0.32);
-    this.leftLegPivot = this.createLimbPivot(-0.16, 0.35, 0, new THREE.BoxGeometry(0.18, 0.58, 0.18), legMat, -0.3);
-    this.rightLegPivot = this.createLimbPivot(0.16, 0.35, 0, new THREE.BoxGeometry(0.18, 0.58, 0.18), legMat, -0.3);
-    this.mesh.add(this.leftArmPivot, this.rightArmPivot, this.leftLegPivot, this.rightLegPivot);
-
-    for (const pivot of [this.leftArmPivot, this.rightArmPivot]) {
-      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 5), handMat);
-      hand.position.y = -0.68;
-      hand.castShadow = true;
-      pivot.add(hand);
-    }
-
-    // Shadow blob
-    const shadowGeom = new THREE.CircleGeometry(0.4, 12);
-    const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2 });
-    const shadow = new THREE.Mesh(shadowGeom, shadowMat);
-    shadow.rotation.x = -Math.PI / 2;
-    shadow.position.y = 0.01;
-    this.mesh.add(shadow);
-
+  constructor(characterType: CharacterType = 'male') {
+    this.parts = PlayerModel.create(characterType);
+    this.mesh = this.parts.root;
+    this.body = this.parts.body;
+    this.leftArmPivot = this.parts.leftArmPivot;
+    this.rightArmPivot = this.parts.rightArmPivot;
+    this.leftLegPivot = this.parts.leftLegPivot;
+    this.rightLegPivot = this.parts.rightLegPivot;
     this.mesh.position.set(0, 0, 6);
-  }
-
-  private createLimbPivot(
-    x: number,
-    y: number,
-    z: number,
-    geometry: THREE.BufferGeometry,
-    material: THREE.Material,
-    meshY: number,
-  ): THREE.Group {
-    const pivot = new THREE.Group();
-    pivot.position.set(x, y, z);
-    const limb = new THREE.Mesh(geometry, material);
-    limb.position.y = meshY;
-    limb.castShadow = true;
-    pivot.add(limb);
-    return pivot;
   }
 
   getFacingDirection(): THREE.Vector3 {
@@ -143,7 +81,8 @@ export class Player {
       this.rightArmPivot.rotation.x = -swing;
       this.leftLegPivot.rotation.x = -swing;
       this.rightLegPivot.rotation.x = swing;
-      this.body.position.y = 0.7 + Math.abs(Math.sin(this.runTime * 10)) * 0.04;
+      this.body.position.y = this.body.position.y + (0.7 - this.body.position.y) * 0; // keep current base
+      this.body.position.y += Math.abs(Math.sin(this.runTime * 10)) * 0.04;
       return;
     }
 

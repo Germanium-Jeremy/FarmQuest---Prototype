@@ -1,0 +1,9 @@
+.git
+node_modules
+dist
+server/node_modules
+server/dist
+server/farmquest.db
+*.md
+.env
+.DS_Store

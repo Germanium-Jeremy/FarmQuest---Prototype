@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FarmQuest Admin Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0a0a1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto 1fr auto;
+      height: 100vh;
+      gap: 16px;
+      padding: 24px;
+    }
+    .header {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 16px 0;
+    }
+    .header h1 { color: #00ff88; font-size: 48px; }
+    .header p { color: #888; font-size: 20px; margin-top: 4px; }
+    .panel {
+      background: #12122a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel h2 { color: #00ff88; font-size: 24px; margin-bottom: 12px; }
+    .player-list { flex: 1; overflow-y: auto; }
+    .player-entry {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #222;
+      font-size: 22px;
+    }
+    .player-entry .icon { font-size: 28px; }
+    .player-entry .name { flex: 1; color: #fff; font-weight: bold; }
+    .player-entry .map { color: #888; font-size: 16px; }
+    .leaderboard-entry {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-bottom: 1px solid #222;
+      font-size: 24px;
+    }
+    .leaderboard-entry .rank { color: #00ff88; font-weight: bold; min-width: 40px; }
+    .leaderboard-entry .name { flex: 1; color: #fff; }
+    .leaderboard-entry .score { color: #ffe36d; font-weight: bold; }
+    .leaderboard-entry.top3 .rank { color: #ffd700; font-size: 28px; }
+    .controls {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      padding: 16px 0;
+    }
+    .controls button {
+      padding: 16px 40px;
+      font-size: 28px;
+      font-weight: bold;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+    }
+    #start-btn { background: #00ff88; color: #0a0a1a; }
+    #start-btn:hover { background: #00cc6a; }
+    #end-btn { background: #ff4444; color: white; }
+    #end-btn:hover { background: #cc2222; }
+    #start-btn:disabled, #end-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+    .status-bar {
+      grid-column: 1 / -1;
+      text-align: center;
+      font-size: 20px;
+      color: #888;
+      padding: 8px 0;
+    }
+    .status-bar .status { color: #00ff88; font-weight: bold; }
+    .status-bar .count { color: #ffe36d; font-weight: bold; }
+    .map-select { margin-bottom: 12px; }
+    .map-select select {
+      padding: 12px 16px;
+      font-size: 20px;
+      background: #1a1a2e;
+      color: white;
+      border: 1px solid #444;
+      border-radius: 8px;
+      width: 100%;
+    }
+    #login-section {
+      position: fixed;
+      inset: 0;
+      background: #0a0a1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    .login-card {
+      background: #12122a;
+      border: 2px solid #333;
+      border-radius: 16px;
+      padding: 40px;
+      width: 400px;
+      text-align: center;
+    }
+    .login-card h2 { color: #00ff88; margin-bottom: 20px; }
+    .login-card input { width: 100%; padding: 14px; border-radius: 8px; border: 1px solid #444; background: #0d0d1a; color: white; font-size: 18px; margin-bottom: 16px; }
+    .login-card button { width: 100%; padding: 14px; border: none; border-radius: 8px; background: #00ff88; color: #0a0a1a; font-size: 20px; font-weight: bold; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="login-section">
+    <div class="login-card">
+      <h2>🌾 Admin Login</h2>
+      <input id="admin-token" type="password" placeholder="Enter admin token" />
+      <button onclick="adminLogin()">Login</button>
+    </div>
+  </div>
+
+  <div class="dashboard" id="dashboard" style="display:none;">
+    <div class="header">
+      <h1>🌾 FARMQUEST</h1>
+      <p>Event Dashboard</p>
+    </div>
+
+    <div class="panel">
+      <h2>👥 Entering Players</h2>
+      <div class="player-list" id="player-list">
+        <div style="color:#666;text-align:center;padding:40px;">No players yet...</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>🏆 Leaderboard</h2>
+      <div class="player-list" id="leaderboard">
+        <div style="color:#666;text-align:center;padding:40px;">No results yet...</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="map-select">
+        <select id="map-select">
+          <option value="rwanda">🌧️ Rwanda - Wet Land</option>
+          <option value="sudan">🏜️ Sudan - Desert</option>
+          <option value="seychelles">🌊 Seychelles - Water Land</option>
+        </select>
+      </div>
+      <button id="start-btn" onclick="startGame()">🎮 START GAME</button>
+      <button id="end-btn" onclick="endGame()" disabled>⏹️ END GAME</button>
+    </div>
+
+    <div class="status-bar">
+      Status: <span class="status" id="status">WAITING</span> &nbsp;|&nbsp;
+      Players: <span class="count" id="player-count">0</span> &nbsp;|&nbsp;
+      Map: <span id="current-map">Rwanda</span>
+    </div>
+  </div>
+
+  <script>
+    let adminToken = '';
+    let ws = null;
+    let players = [];
+
+    function adminLogin() {
+      adminToken = document.getElementById('admin-token').value;
+      if (!adminToken) return;
+      document.getElementById('login-section').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'grid';
+      connectWS();
+    }
+
+    function connectWS() {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(protocol + '//' + location.host + '/ws?admin=true');
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        handleMessage(msg);
+      };
+      ws.onclose = () => {
+        setTimeout(connectWS, 3000);
+      };
+    }
+
+    function handleMessage(msg) {
+      switch (msg.type) {
+        case 'lobby_update':
+          players = msg.players || [];
+          document.getElementById('player-count').textContent = msg.count || 0;
+          renderPlayers();
+          break;
+        case 'player_joined':
+          break;
+        case 'player_left':
+          break;
+        case 'game_started':
+          document.getElementById('status').textContent = 'IN PLAY';
+          document.getElementById('start-btn').disabled = true;
+          document.getElementById('end-btn').disabled = false;
+          break;
+        case 'leaderboard_update':
+          renderLeaderboard(msg.entries || []);
+          break;
+        case 'game_finished':
+          document.getElementById('status').textContent = 'FINISHED';
+          document.getElementById('start-btn').disabled = false;
+          document.getElementById('end-btn').disabled = true;
+          renderLeaderboard(msg.leaderboard || []);
+          break;
+      }
+    }
+
+    function renderPlayers() {
+      const el = document.getElementById('player-list');
+      if (!players.length) {
+        el.innerHTML = '<div style="color:#666;text-align:center;padding:40px;">No players yet...</div>';
+        return;
+      }
+      const charIcons = { male: '👨', female: '👩', robot: '🤖' };
+      const mapIcons = { rwanda: '🌧️', sudan: '🏜️', seychelles: '🌊' };
+      el.innerHTML = players.map((p, i) => '<div class="player-entry">' +
+        '<span class="icon">' + (charIcons[p.characterType] || '👤') + '</span>' +
+        '<span class="name">' + p.displayName + '</span>' +
+        '<span class="map">' + (mapIcons[p.mapId] || '') + ' ' + p.mapId + '</span>' +
+        '</div>').join('');
+    }
+
+    function renderLeaderboard(entries) {
+      const el = document.getElementById('leaderboard');
+      if (!entries.length) {
+        el.innerHTML = '<div style="color:#666;text-align:center;padding:40px;">No results yet...</div>';
+        return;
+      }
+      el.innerHTML = entries.slice(0, 10).map((e) => {
+        const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
+        const medal = medals[e.rank] || '';
+        const time = Math.floor(e.completionTime / 60) + ':' + String(Math.floor(e.completionTime % 60)).padStart(2, '0');
+        return '<div class="leaderboard-entry' + (e.rank <= 3 ? ' top3' : '') + '">' +
+          '<span class="rank">' + medal + ' ' + e.rank + '.</span>' +
+          '<span class="name">' + e.displayName + '</span>' +
+          '<span class="score">' + e.score + ' pts (' + time + ')</span>' +
+          '</div>';
+      }).join('');
+    }
+
+    function startGame() {
+      const mapId = document.getElementById('map-select').value;
+      document.getElementById('current-map').textContent = mapId;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'admin_start_game', mapId: mapId, adminToken: adminToken }));
+      }
+    }
+
+    function endGame() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'admin_end_game', adminToken: adminToken }));
+      }
+    }
+  </script>
+</body>
+</html>
