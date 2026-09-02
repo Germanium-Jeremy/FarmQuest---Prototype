@@ -1,8 +1,10 @@
 import { CropType } from '../data/CropType';
 import { LevelConfig, TOTAL_LEVELS } from '../data/LevelConfig';
+import { MAP_THEMES, MapId } from '../data/MapTheme';
 import { TaskType } from '../data/TaskType';
 import { GameTask } from '../game/GameTask';
 import { ScoreManager } from '../game/ScoreManager';
+import { CharacterType } from '../player/PlayerModel';
 
 const taskIcon = (task: GameTask | null) => {
   if (!task) return '🌱';
@@ -146,6 +148,47 @@ export class HUD {
       buttonText: `Start Level ${level.id}`,
       onButton: onStart,
     });
+  }
+
+  showCharacterSelect(onSelect: (type: CharacterType) => void): void {
+    this.hideHUD();
+    this.hideTaskModal();
+    this.screenEl.style.display = 'flex';
+    this.screenEl.innerHTML = `
+      <div style="width:min(92vw,720px);background:linear-gradient(145deg,#fdf8df,#ecd17a);color:#193620;border-radius:24px;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,0.3);">
+        <h1 style="font-size:clamp(34px,7vw,52px);margin:0 0 10px;font-weight:1000;">Choose Your Farmer</h1>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-top:22px;">
+          ${this.choiceButton('character-male', 'Male', 'Blue overalls and straw hat')}
+          ${this.choiceButton('character-female', 'Female', 'Purple outfit, hair bun and flower')}
+          ${this.choiceButton('character-robot', 'Robot', 'Metal farmer with glowing lights')}
+        </div>
+      </div>
+    `;
+    document.getElementById('character-male')!.addEventListener('click', () => onSelect('male'));
+    document.getElementById('character-female')!.addEventListener('click', () => onSelect('female'));
+    document.getElementById('character-robot')!.addEventListener('click', () => onSelect('robot'));
+  }
+
+  showMapSelect(onSelect: (mapId: MapId) => void): void {
+    this.hideHUD();
+    this.hideTaskModal();
+    this.screenEl.style.display = 'flex';
+    this.screenEl.innerHTML = `
+      <div style="width:min(92vw,780px);background:rgba(18,38,24,0.95);border:2px solid rgba(255,227,109,0.55);border-radius:22px;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,0.32);">
+        <h1 style="font-size:clamp(34px,7vw,52px);margin:0 0 10px;color:#bff28a;">Choose Your Map</h1>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:22px;">
+          ${Object.values(MAP_THEMES).map((theme) => `
+            <button id="map-${theme.id}" style="${this.choiceStyle()};background:linear-gradient(145deg,#${theme.groundColor.toString(16).padStart(6, '0')},#${theme.waterColor.toString(16).padStart(6, '0')});color:#102214;">
+              <strong style="display:block;font-size:21px;margin-bottom:8px;">${theme.name}</strong>
+              <span style="font-size:14px;font-weight:900;">${theme.description}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    for (const theme of Object.values(MAP_THEMES)) {
+      document.getElementById(`map-${theme.id}`)!.addEventListener('click', () => onSelect(theme.id));
+    }
   }
 
   showFirstTask(task: GameTask, onStart: () => void): void {
@@ -307,15 +350,15 @@ export class HUD {
     document.getElementById('retry-btn')!.addEventListener('click', onRetry);
   }
 
-  showComplete(email: string, emailSent: boolean, completedLevels: number[], onRetry: () => void): void {
+  showComplete(email: string, emailSent: boolean, completionTime: number, onRetry: () => void): void {
     this.hideHUD();
     this.hideTaskModal();
     this.screenEl.style.display = 'flex';
     this.screenEl.innerHTML = `
       <div style="width:min(92vw,600px);">
         <h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 10px;color:#bff28a;">🎉 FarmQuest Complete!</h1>
-        <p style="font-size:24px;color:#e9f6e4;margin:0 0 8px;font-weight:900;">You completed all ${TOTAL_LEVELS} levels.</p>
-        <div style="font-size:18px;color:#d8f5c6;margin-bottom:16px;">${completedLevels.map((level) => `✓ Level ${level}`).join(' &nbsp; ')}</div>
+        <p style="font-size:24px;color:#e9f6e4;margin:0 0 8px;font-weight:900;">You completed the full farm instance.</p>
+        <div style="font-size:18px;color:#d8f5c6;margin-bottom:16px;">Completion Time: ${completionTime.toFixed(1)}s</div>
         <p style="font-size:28px;color:#ffe36d;margin:0 0 22px;">⭐ Final Score: ${this.scoreManager.getScore()}</p>
         <div style="display:inline-block;background:rgba(255,227,109,0.12);border:2px solid #ffe36d;border-radius:18px;padding:22px 32px;margin-bottom:24px;">
           <h2 style="font-size:28px;margin:0 0 8px;color:#ffe36d;">🎁 Reward Unlocked</h2>
@@ -387,6 +430,23 @@ export class HUD {
     return `
       padding:15px 36px;font-size:20px;font-weight:1000;background:${color};color:white;
       border:0;border-radius:999px;cursor:pointer;pointer-events:all;box-shadow:0 8px 22px rgba(0,0,0,0.24);
+    `;
+  }
+
+  private choiceButton(id: string, title: string, body: string): string {
+    return `
+      <button id="${id}" style="${this.choiceStyle()}">
+        <strong style="display:block;font-size:23px;margin-bottom:8px;">${title}</strong>
+        <span style="font-size:15px;font-weight:900;color:#315033;">${body}</span>
+      </button>
+    `;
+  }
+
+  private choiceStyle(): string {
+    return `
+      min-height:132px;padding:18px;border:2px solid rgba(49,80,51,0.25);border-radius:16px;
+      background:#fffdf2;color:#193620;cursor:pointer;pointer-events:all;text-align:left;
+      box-shadow:0 10px 24px rgba(0,0,0,0.18);font-family:inherit;
     `;
   }
 

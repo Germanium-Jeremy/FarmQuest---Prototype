@@ -15,6 +15,15 @@ export interface CompletionResponse {
   alreadyIssued: boolean;
 }
 
+import { MapId } from '../data/MapTheme';
+import { GameTask } from '../game/GameTask';
+
+export interface GameInstanceResponse {
+  instanceId: string;
+  mapId: MapId;
+  tasks: GameTask[];
+}
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 export class FarmQuestApi {
@@ -51,8 +60,12 @@ export class FarmQuestApi {
     await this.post('/game/level-complete', { sessionId, level, score });
   }
 
-  async completeGame(sessionId: string, score: number): Promise<CompletionResponse> {
-    return this.post<CompletionResponse>('/game/complete', { sessionId, score });
+  async startInstance(sessionId: string, mapId: MapId): Promise<GameInstanceResponse> {
+    return this.post<GameInstanceResponse>('/game/instance', { sessionId, mapId });
+  }
+
+  async completeGame(sessionId: string, score: number, completionTime?: number): Promise<CompletionResponse> {
+    return this.post<CompletionResponse>('/game/complete', { sessionId, score, completionTime });
   }
 
   private async post<T = unknown>(path: string, body: unknown): Promise<T> {
