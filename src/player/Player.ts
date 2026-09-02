@@ -1,6 +1,10 @@
 import * as THREE from 'three';
+<<<<<<< HEAD
 import { CharacterType } from '../data/CharacterType';
 import { CharacterParts, PlayerModel } from './PlayerModel';
+=======
+import { CharacterType, PlayerModel } from './PlayerModel';
+>>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
 
 export class Player {
   public mesh: THREE.Group;
@@ -17,6 +21,7 @@ export class Player {
   private parts: CharacterParts;
 
   constructor(characterType: CharacterType = 'male') {
+<<<<<<< HEAD
     this.parts = PlayerModel.create(characterType);
     this.mesh = this.parts.root;
     this.body = this.parts.body;
@@ -24,6 +29,24 @@ export class Player {
     this.rightArmPivot = this.parts.rightArmPivot;
     this.leftLegPivot = this.parts.leftLegPivot;
     this.rightLegPivot = this.parts.rightLegPivot;
+=======
+    const parts = PlayerModel.create(characterType);
+    this.mesh = parts.root;
+    this.body = parts.body;
+    this.leftArmPivot = parts.leftArmPivot;
+    this.rightArmPivot = parts.rightArmPivot;
+    this.leftLegPivot = parts.leftLegPivot;
+    this.rightLegPivot = parts.rightLegPivot;
+
+    // Shadow blob
+    const shadowGeom = new THREE.CircleGeometry(0.4, 12);
+    const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2 });
+    const shadow = new THREE.Mesh(shadowGeom, shadowMat);
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.y = 0.01;
+    this.mesh.add(shadow);
+
+>>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
     this.mesh.position.set(0, 0, 6);
   }
 

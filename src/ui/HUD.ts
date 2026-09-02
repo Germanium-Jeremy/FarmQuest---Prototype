@@ -1,7 +1,13 @@
 import { CropType } from '../data/CropType';
+<<<<<<< HEAD
+=======
+import { LevelConfig, TOTAL_LEVELS } from '../data/LevelConfig';
+import { MAP_THEMES, MapId } from '../data/MapTheme';
+>>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
 import { TaskType } from '../data/TaskType';
 import { GameTask } from '../game/GameTask';
 import { ScoreManager } from '../game/ScoreManager';
+import { CharacterType } from '../player/PlayerModel';
 
 const taskIcon = (task: GameTask | null) => {
   if (!task) return '🌱';
@@ -15,6 +21,11 @@ const taskIcon = (task: GameTask | null) => {
 
 const titleCase = (text: string) => text.replace(/\b\w/g, (letter) => letter.toUpperCase());
 
+const formatTime = (seconds: number): string => {
+  const safe = Math.max(0, Math.floor(seconds));
+  return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
+};
+
 export class HUD {
   private hudEl: HTMLElement;
   private promptEl: HTMLElement;
@@ -25,7 +36,6 @@ export class HUD {
   private transitionTimer: number | null = null;
 
   constructor(private overlay: HTMLElement, private scoreManager: ScoreManager) {
-    this.overlay.innerHTML = '';
     this.overlay.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:10;font-family:Segoe UI,Tahoma,sans-serif;';
 
     this.hudEl = document.createElement('div');
@@ -59,32 +69,47 @@ export class HUD {
     this.taskModalEl.style.cssText = `
       position:absolute;inset:0;display:none;justify-content:center;align-items:center;
       background:radial-gradient(circle at 50% 42%,rgba(63,117,67,0.28),rgba(8,13,10,0.58));
-      pointer-events:all;color:white;text-align:center;padding:20px;
+      pointer-events:all;color:white;text-align:center;padding:20px;z-index:15;
     `;
     this.overlay.appendChild(this.taskModalEl);
 
     this.screenEl = document.createElement('div');
     this.screenEl.style.cssText = `
       position:absolute;inset:0;display:none;justify-content:center;align-items:center;
-      background:rgba(12,19,15,0.86);pointer-events:all;color:white;text-align:center;padding:24px;
+      background:rgba(12,19,15,0.86);pointer-events:all;color:white;text-align:center;padding:24px;z-index:15;
     `;
     this.overlay.appendChild(this.screenEl);
   }
 
+<<<<<<< HEAD
   updateHUD(task: GameTask | null, timeRemaining: number, currentTaskIndex?: number, totalTasks?: number): void {
+=======
+  updateHUD(task: GameTask | null, timeRemaining: number, meta: HUDMeta = {}): void {
+>>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
     if (!task) return;
     this.hudEl.style.display = 'block';
-    const timeStr = `${String(Math.floor(timeRemaining / 60)).padStart(2, '0')}:${String(Math.floor(timeRemaining) % 60).padStart(2, '0')}`;
     const lowTime = timeRemaining <= 8;
     const progress = Math.round((task.currentAmount / task.targetAmount) * 100);
+<<<<<<< HEAD
     const taskInfo = (currentTaskIndex != null && totalTasks != null) ? `TASK ${currentTaskIndex + 1} / ${totalTasks}` : '';
+=======
+    const taskNumber = meta.taskNumber ?? 1;
+    const taskCount = meta.taskCount ?? 1;
+    const elapsed = meta.elapsedSeconds ?? 0;
+    const playerCount = meta.playerCount;
+
+>>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
     this.hudEl.innerHTML = `
       <div style="display:flex;gap:14px;align-items:center;">
         <div style="font-size:42px;line-height:1;background:rgba(255,255,255,0.13);border-radius:14px;padding:9px 12px;">${taskIcon(task)}</div>
         <div style="flex:1;min-width:0;text-align:left;">
           <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:3px;">
             <div style="font-size:12px;font-weight:1000;letter-spacing:0;color:#bff28a;">CURRENT TASK</div>
+<<<<<<< HEAD
             ${taskInfo ? `<div style="font-size:13px;font-weight:1000;color:#ffe36d;">${taskInfo}</div>` : ''}
+=======
+            <div style="font-size:13px;font-weight:1000;color:#ffe36d;">TASK ${taskNumber} OF ${taskCount}</div>
+>>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
           </div>
           <div style="font-size:clamp(22px,4vw,32px);line-height:1.08;font-weight:1000;margin-bottom:11px;">${titleCase(task.description)}</div>
           <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;">
@@ -94,8 +119,13 @@ export class HUD {
             <div style="font-size:20px;font-weight:1000;color:#ffe36d;">${task.currentAmount} / ${task.targetAmount}</div>
           </div>
           <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:9px;font-size:17px;font-weight:900;">
-            <span style="color:${lowTime ? '#ff766e' : '#bff28a'};">⏱ ${timeStr}</span>
+            <span style="color:${lowTime ? '#ff766e' : '#bff28a'};">⏱ ${formatTime(timeRemaining)}</span>
+            <span style="color:#d8f5c6;">🕒 ${formatTime(elapsed)}</span>
             <span style="color:#ffe36d;">⭐ Score ${this.scoreManager.getScore()}</span>
+<<<<<<< HEAD
+=======
+            ${playerCount != null ? `<span style="color:#bff28a;">PLAYERS: ${playerCount} connected</span>` : ''}
+>>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
           </div>
         </div>
       </div>
@@ -368,11 +398,52 @@ export class HUD {
     });
   }
 
+  showCharacterSelect(onSelect: (type: CharacterType) => void): void {
+    this.hideHUD();
+    this.hideTaskModal();
+    this.screenEl.style.display = 'flex';
+    this.screenEl.innerHTML = `
+      <div style="width:min(92vw,720px);background:linear-gradient(145deg,#fdf8df,#ecd17a);color:#193620;border-radius:24px;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,0.3);">
+        <h1 style="font-size:clamp(34px,7vw,52px);margin:0 0 10px;font-weight:1000;">Choose Your Farmer</h1>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-top:22px;">
+          ${this.choiceButton('character-male', 'Male', 'Blue overalls and straw hat')}
+          ${this.choiceButton('character-female', 'Female', 'Purple outfit, hair bun and flower')}
+          ${this.choiceButton('character-robot', 'Robot', 'Metal farmer with glowing lights')}
+        </div>
+      </div>
+    `;
+    document.getElementById('character-male')!.addEventListener('click', () => onSelect('male'));
+    document.getElementById('character-female')!.addEventListener('click', () => onSelect('female'));
+    document.getElementById('character-robot')!.addEventListener('click', () => onSelect('robot'));
+  }
+
+  showMapSelect(onSelect: (mapId: MapId) => void): void {
+    this.hideHUD();
+    this.hideTaskModal();
+    this.screenEl.style.display = 'flex';
+    this.screenEl.innerHTML = `
+      <div style="width:min(92vw,780px);background:rgba(18,38,24,0.95);border:2px solid rgba(255,227,109,0.55);border-radius:22px;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,0.32);">
+        <h1 style="font-size:clamp(34px,7vw,52px);margin:0 0 10px;color:#bff28a;">Choose Your Map</h1>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:22px;">
+          ${Object.values(MAP_THEMES).map((theme) => `
+            <button id="map-${theme.id}" style="${this.choiceStyle()};background:linear-gradient(145deg,#${theme.groundColor.toString(16).padStart(6, '0')},#${theme.waterColor.toString(16).padStart(6, '0')});color:#102214;">
+              <strong style="display:block;font-size:21px;margin-bottom:8px;">${theme.name}</strong>
+              <span style="font-size:14px;font-weight:900;">${theme.description}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    for (const theme of Object.values(MAP_THEMES)) {
+      document.getElementById(`map-${theme.id}`)!.addEventListener('click', () => onSelect(theme.id));
+    }
+  }
+
   showFirstTask(task: GameTask, onStart: () => void): void {
     this.hideHUD();
     this.showTaskCard({
-      eyebrow: 'Welcome to FarmQuest',
-      kicker: 'Your First Task',
+      eyebrow: 'FarmQuest Event',
+      kicker: `Task ${taskNumber} of ${taskCount}`,
       task,
       body: 'Complete the farming challenges before time runs out.',
       buttonText: 'Start Game',
@@ -409,6 +480,7 @@ export class HUD {
     }, 1150);
   }
 
+<<<<<<< HEAD
   showGameOver(currentTask: GameTask | null, onRetry: () => void): void {
     this.hideHUD();
     this.hideTaskModal();
@@ -465,6 +537,8 @@ export class HUD {
     `;
   }
 
+=======
+>>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
   showPrompt(text: string): void {
     this.promptEl.style.display = 'block';
     this.promptEl.textContent = `[E] ${text}`;
@@ -494,11 +568,60 @@ export class HUD {
       <div style="width:min(92vw,620px);">
         <h1 style="font-size:clamp(44px,9vw,70px);margin:0 0 10px;font-weight:1000;">FarmQuest</h1>
         <p style="font-size:20px;color:#d9ead1;margin:0 0 34px;">Explore, collect seeds, plant crops, find water, harvest, and claim your reward.</p>
-        <button id="start-btn" style="${this.buttonStyle('#52a447')}">Start Game</button>
+        <button id="start-btn" style="${buttonStyle('#52a447')}">Enter Event</button>
         <div style="margin-top:24px;color:#b8c9b2;font-size:15px;">WASD / Arrow Keys to move. E or Space to interact.</div>
       </div>
     `;
+<<<<<<< HEAD
     document.getElementById('start-btn')?.addEventListener('click', onStart);
+=======
+    document.getElementById('start-btn')!.addEventListener('click', onStart);
+  }
+
+  showGameOver(currentTask: GameTask | null, onRetry: () => void): void {
+    this.hideHUD();
+    this.hideTaskModal();
+    this.screenEl.style.display = 'flex';
+    this.screenEl.innerHTML = `
+      <div style="width:min(92vw,560px);">
+        <h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 10px;color:#ff766e;">⏱ Time's Up!</h1>
+        <p style="font-size:20px;color:#e9f6e4;margin:0 0 18px;">You did not complete the current task.</p>
+        ${currentTask ? `
+          <div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:16px;margin-bottom:22px;">
+            <div style="font-size:12px;font-weight:1000;color:#bff28a;margin-bottom:5px;">CURRENT TASK</div>
+            <div style="font-size:28px;font-weight:1000;">${taskIcon(currentTask)} ${titleCase(currentTask.description)}</div>
+            <div style="font-size:20px;color:#ffe36d;margin-top:8px;">Progress: ${currentTask.currentAmount} / ${currentTask.targetAmount}</div>
+          </div>
+        ` : ''}
+        <p style="font-size:28px;color:#ffe36d;margin:0 0 28px;">⭐ Final Score: ${this.scoreManager.getScore()}</p>
+        <button id="retry-btn" style="${this.buttonStyle('#e5534b')}">Play Again</button>
+      </div>
+    `;
+    document.getElementById('retry-btn')!.addEventListener('click', onRetry);
+  }
+
+  showComplete(email: string, emailSent: boolean, completionTime: number, onRetry: () => void): void {
+    this.hideHUD();
+    this.hideTaskModal();
+    this.screenEl.style.display = 'flex';
+    this.screenEl.innerHTML = `
+      <div style="width:min(92vw,600px);">
+        <h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 10px;color:#bff28a;">🎉 FarmQuest Complete!</h1>
+        <p style="font-size:24px;color:#e9f6e4;margin:0 0 8px;font-weight:900;">You completed the full farm instance.</p>
+        <div style="font-size:18px;color:#d8f5c6;margin-bottom:16px;">Completion Time: ${completionTime.toFixed(1)}s</div>
+        <p style="font-size:28px;color:#ffe36d;margin:0 0 22px;">⭐ Final Score: ${this.scoreManager.getScore()}</p>
+        <div style="display:inline-block;background:rgba(255,227,109,0.12);border:2px solid #ffe36d;border-radius:18px;padding:22px 32px;margin-bottom:24px;">
+          <h2 style="font-size:28px;margin:0 0 8px;color:#ffe36d;">🎁 Reward Unlocked</h2>
+          <p style="font-size:21px;margin:0 0 14px;">${emailSent ? 'Your coupon has been sent to:' : 'Your reward was created, but the email could not be sent.'}</p>
+          <div style="font-size:22px;font-weight:1000;margin-bottom:14px;">${this.maskEmail(email)}</div>
+          <div style="font-size:22px;margin-top:16px;">Free Coffee ☕</div>
+        </div>
+        <br>
+        <button id="retry-btn" style="${this.buttonStyle('#52a447')}">Play Again</button>
+      </div>
+    `;
+    document.getElementById('retry-btn')!.addEventListener('click', onRetry);
+>>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
   }
 
   hideScreen(): void {
@@ -549,7 +672,7 @@ export class HUD {
         <div style="font-size:56px;line-height:1;margin:12px 0 8px;">${config.icon}</div>
         <h1 style="font-size:clamp(30px,7vw,46px);line-height:1.04;margin:0 0 14px;font-weight:1000;">${config.title}</h1>
         <p style="font-size:19px;line-height:1.35;margin:0 0 ${config.buttonText ? '22px' : '0'};font-weight:800;color:#315033;">${config.body}</p>
-        ${config.buttonText ? `<button id="task-modal-button" style="${this.buttonStyle('#2f8f3a')}">${config.buttonText}</button>` : ''}
+        ${config.buttonText ? `<button id="task-modal-button" style="${buttonStyle('#2f8f3a')}">${config.buttonText}</button>` : ''}
       </div>
     `;
   }
@@ -558,6 +681,23 @@ export class HUD {
     return `
       padding:15px 36px;font-size:20px;font-weight:1000;background:${color};color:white;
       border:0;border-radius:999px;cursor:pointer;pointer-events:all;box-shadow:0 8px 22px rgba(0,0,0,0.24);
+    `;
+  }
+
+  private choiceButton(id: string, title: string, body: string): string {
+    return `
+      <button id="${id}" style="${this.choiceStyle()}">
+        <strong style="display:block;font-size:23px;margin-bottom:8px;">${title}</strong>
+        <span style="font-size:15px;font-weight:900;color:#315033;">${body}</span>
+      </button>
+    `;
+  }
+
+  private choiceStyle(): string {
+    return `
+      min-height:132px;padding:18px;border:2px solid rgba(49,80,51,0.25);border-radius:16px;
+      background:#fffdf2;color:#193620;cursor:pointer;pointer-events:all;text-align:left;
+      box-shadow:0 10px 24px rgba(0,0,0,0.18);font-family:inherit;
     `;
   }
 

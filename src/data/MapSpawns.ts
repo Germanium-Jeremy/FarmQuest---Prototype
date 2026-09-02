@@ -1,10 +1,17 @@
 import * as THREE from 'three';
 import { MapId } from './MapTheme';
 
+<<<<<<< HEAD
 export interface WaterSpawn {
   name: string;
   position: THREE.Vector3;
 }
+=======
+export type WaterSpawn = {
+  name: string;
+  position: THREE.Vector3;
+};
+>>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
 
 export interface MapSpawnConfig {
   seedSpawnPoints: THREE.Vector3[];

@@ -9,14 +9,22 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "qrcode": "^1.5.4",
+    "ws": "^8.21.3",
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^26.4.0",
+<<<<<<< HEAD
+=======
+    "@types/qrcode": "^1.5.6",
+>>>>>>> 0e30527751ef7c317d43f66e0604962f1629d2e7
     "@types/ws": "^8.18.1",
     "tsx": "^4.23.13",
     "typescript": "^5.9.3"
