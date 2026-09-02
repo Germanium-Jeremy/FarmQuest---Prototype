@@ -1,8 +1,13 @@
 export enum GameState {
   MENU = 'MENU',
+  LOGIN = 'LOGIN',
+  CHARACTER_SELECT = 'CHARACTER_SELECT',
+  MAP_SELECT = 'MAP_SELECT',
+  LOBBY = 'LOBBY',
   PLAYING = 'PLAYING',
   GAME_OVER = 'GAME_OVER',
   COMPLETE = 'COMPLETE',
+  LEADERBOARD = 'LEADERBOARD',
 }
 
 export enum Challenge {
