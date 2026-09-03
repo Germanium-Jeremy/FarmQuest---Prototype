@@ -59,11 +59,11 @@ export class GameCoordinator {
     if (this.status !== 'IN_PLAY') return null;
     const player = this.lobby.get(playerId);
     if (!player) return null;
-    if (this.completions.some((c) => c.playerId === playerId)) return null;
+    if (this.completions.some((c) => c.playerId === player.databaseId)) return null;
 
-    this.completions.push({ playerId, displayName: player.displayName, score, completionTime });
+    this.completions.push({ playerId: player.databaseId, displayName: player.displayName, score, completionTime });
     this.completions.sort((a, b) => a.completionTime - b.completionTime || b.score - a.score);
-    const rank = this.completions.findIndex((c) => c.playerId === playerId) + 1;
+    const rank = this.completions.findIndex((c) => c.playerId === player.databaseId) + 1;
     return { rank, displayName: player.displayName };
   }
 

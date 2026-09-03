@@ -1,9 +1,13 @@
 import { GameCoordinator } from './GameCoordinator.js';
 import { SocketManager } from './SocketManager.js';
 import { ClientMessage, AdminMessage, LobbyPlayer } from './types.js';
-import { getPlayer, registerPlayerForInstance, updateInstancePlayerStatus, insertLeaderboardEntry } from '../storage/database.js';
+import { getPlayer, registerPlayerForInstance, updateInstancePlayerStatus, insertLeaderboardEntry, createEventInstance, updateInstanceStatus, getPlayer as getPlayerDb } from '../storage/database.js';
+import { CouponService } from '../services/CouponService.js';
+import { createEmailService } from '../services/EmailService.js';
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? 'dev-admin-token-change-me';
+const couponService = new CouponService();
+const emailService = createEmailService();
 
 export class EventHandler {
   constructor(private coordinator: GameCoordinator, private socketManager: SocketManager) {}
@@ -69,12 +73,23 @@ export class EventHandler {
       return;
     }
     try {
-      const { instanceId, tasks } = this.coordinator.startGame(message.mapId);
-      this.socketManager.broadcastToAdmins({ type: 'game_started', instanceId });
+      const { instanceId: coordinatorId, tasks } = this.coordinator.startGame(message.mapId);
+
+      // Persist event instance
+      const instance = createEventInstance(message.mapId);
+      updateInstanceStatus(instance.id, 'IN_PLAY');
+
+      // Register all lobby players to this instance
+      for (const player of this.coordinator.getLobby()) {
+        registerPlayerForInstance(instance.id, player.databaseId, player.playerId, player.characterType, player.mapId);
+        updateInstancePlayerStatus(instance.id, player.databaseId, 'PLAYING');
+      }
+
+      this.socketManager.broadcastToAdmins({ type: 'game_started', instanceId: instance.id });
       for (const player of this.coordinator.getLobby()) {
         this.socketManager.sendToClient(player.playerId, {
           type: 'game_start',
-          instanceId,
+          instanceId: instance.id,
           mapId: message.mapId,
           tasks: tasks.map((t) => ({ id: t.id, type: t.type, cropType: t.cropType, targetAmount: t.targetAmount, currentAmount: t.currentAmount, timeLimit: t.timeLimit, scoreReward: t.scoreReward, description: t.description }))
         });
@@ -84,13 +99,36 @@ export class EventHandler {
     }
   }
 
-  private handleAdminEndGame(): void { this.finishGame(); }
+  private async handleAdminEndGame(): Promise<void> { await this.finishGame(); }
 
-  private finishGame(): void {
+  private async finishGame(): Promise<void> {
     const { leaderboard } = this.coordinator.endGame();
     this.socketManager.broadcastToAdmins({ type: 'game_finished', leaderboard });
     for (const entry of leaderboard) {
-      this.socketManager.sendToClient(entry.playerId, { type: 'game_finished', leaderboard, yourRank: entry.rank });
+      const lobbyPlayer = this.coordinator.getLobby().find((l) => l.databaseId === entry.playerId);
+      if (lobbyPlayer) {
+        this.socketManager.sendToClient(lobbyPlayer.playerId, { type: 'game_finished', leaderboard, yourRank: entry.rank });
+      }
+
+      if (entry.rank <= 10) {
+        try {
+          const player = getPlayerDb(entry.playerId);
+          if (!player) continue;
+
+          // Use the coordinator's current instance if available, or look up the latest one
+          const instanceId = this.coordinator.getCurrentInstanceId() ?? 'unknown';
+          const { coupon } = couponService.getOrCreateCoupon(player.id, instanceId);
+
+          await emailService.sendCouponEmail({
+            to: player.email,
+            couponCode: coupon.code,
+            rewardName: entry.rewardType ?? 'Gift',
+            score: entry.score,
+          });
+        } catch (error) {
+          console.error(`Failed to issue reward for player ${entry.playerId}:`, error);
+        }
+      }
     }
   }
 }
