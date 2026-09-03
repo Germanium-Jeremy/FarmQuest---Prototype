@@ -14,11 +14,13 @@ import { GameCoordinator } from "./ws/GameCoordinator.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
+const normalizeOrigin = (origin: string): string =>
+  origin.trim().replace(/\/+$/, "");
 const allowedOrigins = (
   process.env.ALLOWED_ORIGINS ?? "http://127.0.0.1:3000,http://localhost:3000"
 )
   .split(",")
-  .map((o) => o.trim())
+  .map(normalizeOrigin)
   .filter(Boolean);
 
 const hits = new Map<string, { count: number; resetAt: number }>();
@@ -26,7 +28,7 @@ const hits = new Map<string, { count: number; resetAt: number }>();
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || allowedOrigins.includes(normalizeOrigin(origin))) {
         callback(null, true);
         return;
       }
