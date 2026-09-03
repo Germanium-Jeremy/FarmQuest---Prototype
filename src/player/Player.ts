@@ -1,6 +1,6 @@
-import * as THREE from 'three';
-import { CharacterType } from '../data/CharacterType';
-import { CharacterParts, PlayerModel } from './PlayerModel';
+import * as THREE from "three";
+import { CharacterType } from "../data/CharacterType";
+import { CharacterParts, PlayerModel } from "./PlayerModel";
 
 export class Player {
   public mesh: THREE.Group;
@@ -15,7 +15,7 @@ export class Player {
   private rightLegPivot: THREE.Group;
   private runTime = 0;
 
-  constructor(characterType: CharacterType = 'male') {
+  constructor(characterType: CharacterType = "male") {
     const parts = PlayerModel.create(characterType);
     this.mesh = parts.root;
     this.body = parts.body;
@@ -38,15 +38,16 @@ export class Player {
     delta: number,
     keys: Set<string>,
     worldBounds: { minX: number; maxX: number; minZ: number; maxZ: number },
-    canMoveTo: (position: THREE.Vector3, radius: number) => boolean = () => true,
+    canMoveTo: (position: THREE.Vector3, radius: number) => boolean = () =>
+      true,
     virtualMove = new THREE.Vector2(),
   ): void {
     const moveDir = new THREE.Vector3(0, 0, 0);
 
-    if (keys.has('KeyW') || keys.has('ArrowUp')) moveDir.z -= 1;
-    if (keys.has('KeyS') || keys.has('ArrowDown')) moveDir.z += 1;
-    if (keys.has('KeyA') || keys.has('ArrowLeft')) moveDir.x -= 1;
-    if (keys.has('KeyD') || keys.has('ArrowRight')) moveDir.x += 1;
+    if (keys.has("KeyW") || keys.has("ArrowUp")) moveDir.z -= 1;
+    if (keys.has("KeyS") || keys.has("ArrowDown")) moveDir.z += 1;
+    if (keys.has("KeyA") || keys.has("ArrowLeft")) moveDir.x -= 1;
+    if (keys.has("KeyD") || keys.has("ArrowRight")) moveDir.x += 1;
     moveDir.x += virtualMove.x;
     moveDir.z += virtualMove.y;
 
@@ -58,12 +59,20 @@ export class Player {
       const moveX = moveDir.x * this.speed * delta;
       const moveZ = moveDir.z * this.speed * delta;
       const nextX = this.mesh.position.clone();
-      nextX.x = Math.max(worldBounds.minX, Math.min(worldBounds.maxX, nextX.x + moveX));
-      if (canMoveTo(nextX, this.collisionRadius)) this.mesh.position.x = nextX.x;
+      nextX.x = Math.max(
+        worldBounds.minX,
+        Math.min(worldBounds.maxX, nextX.x + moveX),
+      );
+      if (canMoveTo(nextX, this.collisionRadius))
+        this.mesh.position.x = nextX.x;
 
       const nextZ = this.mesh.position.clone();
-      nextZ.z = Math.max(worldBounds.minZ, Math.min(worldBounds.maxZ, nextZ.z + moveZ));
-      if (canMoveTo(nextZ, this.collisionRadius)) this.mesh.position.z = nextZ.z;
+      nextZ.z = Math.max(
+        worldBounds.minZ,
+        Math.min(worldBounds.maxZ, nextZ.z + moveZ),
+      );
+      if (canMoveTo(nextZ, this.collisionRadius))
+        this.mesh.position.z = nextZ.z;
 
       const angle = Math.atan2(moveDir.x, moveDir.z);
       let diff = angle - this.mesh.rotation.y;
@@ -86,9 +95,15 @@ export class Player {
       return;
     }
 
-    for (const pivot of [this.leftArmPivot, this.rightArmPivot, this.leftLegPivot, this.rightLegPivot]) {
+    for (const pivot of [
+      this.leftArmPivot,
+      this.rightArmPivot,
+      this.leftLegPivot,
+      this.rightLegPivot,
+    ]) {
       pivot.rotation.x += (0 - pivot.rotation.x) * Math.min(1, delta * 8);
     }
-    this.body.position.y += (0.7 - this.body.position.y) * Math.min(1, delta * 8);
+    this.body.position.y +=
+      (0.7 - this.body.position.y) * Math.min(1, delta * 8);
   }
 }

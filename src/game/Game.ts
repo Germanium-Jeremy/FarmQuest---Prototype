@@ -1,25 +1,25 @@
-import * as THREE from 'three';
-import { FarmQuestApi, isValidEmail, PlayerSession } from '../api/FarmQuestApi';
-import { GameSocket } from '../api/GameSocket';
-import { CharacterType, CHARACTER_OPTIONS } from '../data/CharacterType';
-import { CROP_LABEL, CropType } from '../data/CropType';
-import { MapId, MAP_THEMES, MAP_OPTIONS, MapTheme } from '../data/MapTheme';
-import { TaskType } from '../data/TaskType';
-import { Player } from '../player/Player';
-import { PlayerController } from '../player/PlayerController';
-import { HUD } from '../ui/HUD';
-import { Crop } from '../world/Crop';
-import { Interactable } from '../world/Interactable';
-import { NPC } from '../world/NPC';
-import { Seed } from '../world/Seed';
-import { SpawnManager } from '../world/SpawnManager';
-import { WaterSource } from '../world/WaterSource';
-import { World } from '../world/World';
-import { ChallengeGenerator } from './ChallengeGenerator';
-import { ChallengeManager } from './ChallengeManager';
-import { GameState } from './GameState';
-import { GameTask } from './GameTask';
-import { ScoreManager } from './ScoreManager';
+import * as THREE from "three";
+import { FarmQuestApi, isValidEmail, PlayerSession } from "../api/FarmQuestApi";
+import { GameSocket } from "../api/GameSocket";
+import { CharacterType, CHARACTER_OPTIONS } from "../data/CharacterType";
+import { CROP_LABEL, CropType } from "../data/CropType";
+import { MapId, MAP_THEMES, MAP_OPTIONS, MapTheme } from "../data/MapTheme";
+import { TaskType } from "../data/TaskType";
+import { Player } from "../player/Player";
+import { PlayerController } from "../player/PlayerController";
+import { HUD } from "../ui/HUD";
+import { Crop } from "../world/Crop";
+import { Interactable } from "../world/Interactable";
+import { NPC } from "../world/NPC";
+import { Seed } from "../world/Seed";
+import { SpawnManager } from "../world/SpawnManager";
+import { WaterSource } from "../world/WaterSource";
+import { World } from "../world/World";
+import { ChallengeGenerator } from "./ChallengeGenerator";
+import { ChallengeManager } from "./ChallengeManager";
+import { GameState } from "./GameState";
+import { GameTask } from "./GameTask";
+import { ScoreManager } from "./ScoreManager";
 
 interface SocketGameTask {
   id: string;
@@ -64,8 +64,8 @@ export class Game {
   private hemisphereLight!: THREE.HemisphereLight;
 
   // Event edition state
-  private selectedCharacterType: CharacterType = 'male';
-  private selectedMapId: MapId = 'rwanda';
+  private selectedCharacterType: CharacterType = "male";
+  private selectedMapId: MapId = "rwanda";
 
   constructor(canvas: HTMLCanvasElement, uiOverlay: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -94,41 +94,58 @@ export class Game {
 
     // Create default world and player
     this.world = new World(MAP_THEMES.rwanda);
-    this.npc = new NPC(new THREE.Vector3(-3, 0, 1.6), 'rwanda');
-    this.player = new Player('male');
-    this.spawnManager = new SpawnManager('rwanda');
+    this.npc = new NPC(new THREE.Vector3(-3, 0, 1.6), "rwanda");
+    this.player = new Player("male");
+    this.spawnManager = new SpawnManager("rwanda");
 
-    this.scene.add(this.world.group, this.npc.mesh, this.player.mesh, this.sessionGroup);
+    this.scene.add(
+      this.world.group,
+      this.npc.mesh,
+      this.player.mesh,
+      this.sessionGroup,
+    );
     this.hud = new HUD(uiOverlay, this.scoreManager);
     this.playerController.attachTouchControls(uiOverlay);
 
     this.setupSocketHandlers();
-    window.addEventListener('resize', () => this.onResize());
+    window.addEventListener("resize", () => this.onResize());
 
     // Start with login screen
     this.showLoginScreen();
   }
 
   private setupSocketHandlers(): void {
-    this.socket.on('lobby_update', (data) => {
+    this.socket.on("lobby_update", (data) => {
       const msg = data as { count: number };
       if (this.state === GameState.LOBBY) {
         this.hud.showLobby(
           msg.count,
-          this.session?.displayName ?? 'Player',
+          this.session?.displayName ?? "Player",
           this.selectedCharacterType,
           this.selectedMapId,
         );
       }
     });
 
-    this.socket.on('game_start', (data) => {
-      const msg = data as { instanceId: string; mapId: string; tasks: SocketGameTask[] };
+    this.socket.on("game_start", (data) => {
+      const msg = data as {
+        instanceId: string;
+        mapId: string;
+        tasks: SocketGameTask[];
+      };
       this.startGameFromServer(msg);
     });
 
-    this.socket.on('game_finished', (data) => {
-      const msg = data as { leaderboard: Array<{ rank: number; displayName: string; score: number; completionTime: number }>; yourRank: number };
+    this.socket.on("game_finished", (data) => {
+      const msg = data as {
+        leaderboard: Array<{
+          rank: number;
+          displayName: string;
+          score: number;
+          completionTime: number;
+        }>;
+        yourRank: number;
+      };
       this.state = GameState.LEADERBOARD;
       this.hud.showLeaderboard(
         msg.leaderboard.map((e) => ({
@@ -144,7 +161,7 @@ export class Game {
       );
     });
 
-    this.socket.on('error', (data) => {
+    this.socket.on("error", (data) => {
       const msg = data as { message: string };
       this.hud.showFeedback(`Error: ${msg.message}`);
     });
@@ -163,7 +180,7 @@ export class Game {
       this.hud.showLogin(
         (e) => this.handleLogin(e),
         (e, d) => this.handleRegister(e, d),
-        'Please enter a valid email address.',
+        "Please enter a valid email address.",
       );
       return;
     }
@@ -180,12 +197,15 @@ export class Game {
     }
   }
 
-  private async handleRegister(email: string, displayName: string): Promise<void> {
+  private async handleRegister(
+    email: string,
+    displayName: string,
+  ): Promise<void> {
     if (!isValidEmail(email)) {
       this.hud.showLogin(
         (e) => this.handleLogin(e),
         (e, d) => this.handleRegister(e, d),
-        'Please enter a valid email address.',
+        "Please enter a valid email address.",
       );
       return;
     }
@@ -205,7 +225,11 @@ export class Game {
   private goToCharacterSelect(): void {
     this.state = GameState.CHARACTER_SELECT;
     this.hud.showCharacterSelect(
-      CHARACTER_OPTIONS.map((opt) => ({ type: opt.type, label: opt.label, icon: opt.icon })),
+      CHARACTER_OPTIONS.map((opt) => ({
+        type: opt.type,
+        label: opt.label,
+        icon: opt.icon,
+      })),
       (type) => {
         this.selectedCharacterType = type as CharacterType;
         this.goToMapSelect();
@@ -215,13 +239,10 @@ export class Game {
 
   private goToMapSelect(): void {
     this.state = GameState.MAP_SELECT;
-    this.hud.showMapSelect(
-      MAP_OPTIONS,
-      (id) => {
-        this.selectedMapId = id as MapId;
-        this.goToLobby();
-      },
-    );
+    this.hud.showMapSelect(MAP_OPTIONS, (id) => {
+      this.selectedMapId = id as MapId;
+      this.goToLobby();
+    });
   }
 
   private async goToLobby(): Promise<void> {
@@ -231,12 +252,12 @@ export class Game {
         await this.socket.connect(this.session.sessionId);
         this.socket.joinLobby(
           this.session!.playerId,
-          this.session!.displayName ?? 'Player',
+          this.session!.displayName ?? "Player",
           this.selectedCharacterType,
           this.selectedMapId,
         );
       } catch (error) {
-        console.error('WebSocket connection failed:', error);
+        console.error("WebSocket connection failed:", error);
         this.startLocalGame();
       }
     } else {
@@ -244,7 +265,7 @@ export class Game {
     }
     this.hud.showLobby(
       1,
-      this.session?.displayName ?? 'Player',
+      this.session?.displayName ?? "Player",
       this.selectedCharacterType,
       this.selectedMapId,
     );
@@ -255,7 +276,11 @@ export class Game {
     this.startGameFromServer(tasks as any);
   }
 
-  private startGameFromServer(socketTasks: { instanceId: string; mapId: string; tasks: SocketGameTask[] }): void {
+  private startGameFromServer(socketTasks: {
+    instanceId: string;
+    mapId: string;
+    tasks: SocketGameTask[];
+  }): void {
     const tasks: GameTask[] = socketTasks.tasks.map((t) => ({
       id: t.id,
       type: t.type as TaskType,
@@ -287,7 +312,8 @@ export class Game {
       () => void this.onGameComplete(),
       (message) => this.hud.showFeedback(message),
       (task, isFirstTask) => this.onTaskStarted(task, isFirstTask),
-      (completedTask, nextTask) => this.onTaskCompleted(completedTask, nextTask),
+      (completedTask, nextTask) =>
+        this.onTaskCompleted(completedTask, nextTask),
     );
     this.hud.hideScreen();
   }
@@ -331,7 +357,8 @@ export class Game {
       for (const seed of this.seeds) seed.update(time);
 
       this.nearestInteractable = this.findNearestInteractable();
-      if (this.nearestInteractable) this.hud.showPrompt(this.getPrompt(this.nearestInteractable));
+      if (this.nearestInteractable)
+        this.hud.showPrompt(this.getPrompt(this.nearestInteractable));
       else this.hud.hidePrompt();
 
       if (this.playerController.consumeInteract()) this.handleInteraction();
@@ -363,7 +390,11 @@ export class Game {
     this.waterSource = new WaterSource(water.position, water.name);
     this.waterSource.setOnInteract(() => this.useWaterSource());
     this.sessionGroup.add(this.waterSource.mesh);
-    this.world.collision.addDynamicBox(`water-${water.name}`, new THREE.Vector3(water.position.x, 0.75, water.position.z), new THREE.Vector3(1.35, 1.5, 1.35));
+    this.world.collision.addDynamicBox(
+      `water-${water.name}`,
+      new THREE.Vector3(water.position.x, 0.75, water.position.z),
+      new THREE.Vector3(1.35, 1.5, 1.35),
+    );
   }
 
   private collectSeed(seed: Seed): void {
@@ -371,11 +402,13 @@ export class Game {
       TaskType.COLLECT_SEED,
       seed.cropType,
       1,
-      `${CROP_LABEL[seed.cropType]} ${seed.cropType === CropType.COFFEE ? 'bean' : 'seed'} found +${seed.cropType === CropType.COFFEE ? 75 : 50}`,
+      `${CROP_LABEL[seed.cropType]} ${seed.cropType === CropType.COFFEE ? "bean" : "seed"} found +${seed.cropType === CropType.COFFEE ? 75 : 50}`,
     );
     if (!ok) {
       seed.reset();
-      this.hud.showFeedback(`This ${CROP_LABEL[seed.cropType]} item is for a later task`);
+      this.hud.showFeedback(
+        `This ${CROP_LABEL[seed.cropType]} item is for a later task`,
+      );
       return;
     }
     this.addSeed(seed.cropType);
@@ -383,49 +416,89 @@ export class Game {
   }
 
   private useWaterSource(): void {
-    if (this.challengeManager.registerProgress(TaskType.FIND_WATER, undefined, 1, 'Farm fact: water helps roots move nutrients into the plant. +100')) {
+    if (
+      this.challengeManager.registerProgress(
+        TaskType.FIND_WATER,
+        undefined,
+        1,
+        "Farm fact: water helps roots move nutrients into the plant. +100",
+      )
+    ) {
       this.waterFound = true;
       this.scoreManager.add(100);
       return;
     }
-    this.hud.showFeedback('Water source found. Finish the current task first.');
+    this.hud.showFeedback("Water source found. Finish the current task first.");
   }
 
   private useCrop(crop: Crop): void {
     const task = this.challengeManager.getCurrentTask();
     if (!task) return;
 
-    if ((task.type === TaskType.PLANT_SEED || task.type === TaskType.PLANT_MULTIPLE_SEEDS) && crop.isReadyToPlant()) {
+    if (
+      (task.type === TaskType.PLANT_SEED ||
+        task.type === TaskType.PLANT_MULTIPLE_SEEDS) &&
+      crop.isReadyToPlant()
+    ) {
       const cropType = this.nextSeedToPlant();
       if (!cropType) {
-        this.hud.showFeedback('Collect seeds before planting');
+        this.hud.showFeedback("Collect seeds before planting");
         return;
       }
       crop.plantCrop(cropType, this.requiredWaterPerCrop);
       this.consumeSeed(cropType);
-      if (this.challengeManager.registerProgress(TaskType.PLANT_SEED, cropType, 1, `${CROP_LABEL[cropType]} planted +50`)) {
+      if (
+        this.challengeManager.registerProgress(
+          TaskType.PLANT_SEED,
+          cropType,
+          1,
+          `${CROP_LABEL[cropType]} planted +50`,
+        )
+      ) {
         this.scoreManager.add(50);
       }
       return;
     }
 
-    if ((task.type === TaskType.WATER_CROP || task.type === TaskType.WATER_CROP_MULTIPLE) && crop.isReadyToWater()) {
+    if (
+      (task.type === TaskType.WATER_CROP ||
+        task.type === TaskType.WATER_CROP_MULTIPLE) &&
+      crop.isReadyToWater()
+    ) {
       if (!this.waterFound) {
-        this.hud.showFeedback('Find water before watering crops');
+        this.hud.showFeedback("Find water before watering crops");
         return;
       }
       const cropType = crop.cropType ?? undefined;
       crop.water();
-      if (this.challengeManager.registerProgress(TaskType.WATER_CROP, cropType, 1, `${cropType ? CROP_LABEL[cropType] : 'Crop'} watered +50`)) {
+      if (
+        this.challengeManager.registerProgress(
+          TaskType.WATER_CROP,
+          cropType,
+          1,
+          `${cropType ? CROP_LABEL[cropType] : "Crop"} watered +50`,
+        )
+      ) {
         this.scoreManager.add(50);
       }
       return;
     }
 
-    if ((task.type === TaskType.HARVEST_CROP || task.type === TaskType.HARVEST_MULTIPLE) && crop.isReadyToHarvest()) {
+    if (
+      (task.type === TaskType.HARVEST_CROP ||
+        task.type === TaskType.HARVEST_MULTIPLE) &&
+      crop.isReadyToHarvest()
+    ) {
       const cropType = crop.cropType ?? undefined;
       crop.harvest();
-      if (this.challengeManager.registerProgress(TaskType.HARVEST_CROP, cropType, 1, `${cropType ? CROP_LABEL[cropType] : 'Crop'} harvested +150`)) {
+      if (
+        this.challengeManager.registerProgress(
+          TaskType.HARVEST_CROP,
+          cropType,
+          1,
+          `${cropType ? CROP_LABEL[cropType] : "Crop"} harvested +150`,
+        )
+      ) {
         this.scoreManager.add(150);
       }
     }
@@ -442,7 +515,9 @@ export class Game {
     const candidates: Interactable[] = [
       ...this.seeds.filter((seed) => this.isSeedRelevant(seed, task)),
       ...this.crops.filter((crop) => this.isCropRelevant(crop, task)),
-      ...(this.waterSource && task.type === TaskType.FIND_WATER ? [this.waterSource] : []),
+      ...(this.waterSource && task.type === TaskType.FIND_WATER
+        ? [this.waterSource]
+        : []),
     ];
     const playerPos = this.player.getPosition();
     let nearest: Interactable | null = null;
@@ -460,36 +535,58 @@ export class Game {
 
   private isSeedRelevant(seed: Seed, task: GameTask): boolean {
     return (
-      (task.type === TaskType.COLLECT_SEED || task.type === TaskType.COLLECT_MULTIPLE_SEEDS) &&
+      (task.type === TaskType.COLLECT_SEED ||
+        task.type === TaskType.COLLECT_MULTIPLE_SEEDS) &&
       (!task.cropType || task.cropType === seed.cropType)
     );
   }
 
   private isCropRelevant(crop: Crop, task: GameTask): boolean {
-    if (task.type === TaskType.PLANT_SEED || task.type === TaskType.PLANT_MULTIPLE_SEEDS) return crop.isReadyToPlant() && this.plantQueue.length > 0;
-    if (task.type === TaskType.WATER_CROP || task.type === TaskType.WATER_CROP_MULTIPLE) return crop.isReadyToWater();
-    if (task.type === TaskType.HARVEST_CROP || task.type === TaskType.HARVEST_MULTIPLE) return crop.isReadyToHarvest();
+    if (
+      task.type === TaskType.PLANT_SEED ||
+      task.type === TaskType.PLANT_MULTIPLE_SEEDS
+    )
+      return crop.isReadyToPlant() && this.plantQueue.length > 0;
+    if (
+      task.type === TaskType.WATER_CROP ||
+      task.type === TaskType.WATER_CROP_MULTIPLE
+    )
+      return crop.isReadyToWater();
+    if (
+      task.type === TaskType.HARVEST_CROP ||
+      task.type === TaskType.HARVEST_MULTIPLE
+    )
+      return crop.isReadyToHarvest();
     return false;
   }
 
   private getPrompt(obj: Interactable): string {
     if (obj instanceof Crop) {
       const task = this.challengeManager.getCurrentTask();
-      if (task?.type === TaskType.PLANT_SEED || task?.type === TaskType.PLANT_MULTIPLE_SEEDS) {
+      if (
+        task?.type === TaskType.PLANT_SEED ||
+        task?.type === TaskType.PLANT_MULTIPLE_SEEDS
+      ) {
         const cropType = this.plantQueue[0];
-        return cropType ? `Plant ${CROP_LABEL[cropType]}` : 'Plant Seed';
+        return cropType ? `Plant ${CROP_LABEL[cropType]}` : "Plant Seed";
       }
     }
     return obj.label;
   }
 
   private addSeed(cropType: CropType): void {
-    this.seedInventory.set(cropType, (this.seedInventory.get(cropType) ?? 0) + 1);
+    this.seedInventory.set(
+      cropType,
+      (this.seedInventory.get(cropType) ?? 0) + 1,
+    );
     this.plantQueue.push(cropType);
   }
 
   private consumeSeed(cropType: CropType): void {
-    this.seedInventory.set(cropType, Math.max(0, (this.seedInventory.get(cropType) ?? 0) - 1));
+    this.seedInventory.set(
+      cropType,
+      Math.max(0, (this.seedInventory.get(cropType) ?? 0) - 1),
+    );
     const index = this.plantQueue.indexOf(cropType);
     if (index >= 0) this.plantQueue.splice(index, 1);
   }
@@ -499,10 +596,21 @@ export class Game {
   }
 
   private getRequiredWaterPerCrop(tasks: GameTask[]): number {
-    const plantTask = tasks.find((task) => task.type === TaskType.PLANT_SEED || task.type === TaskType.PLANT_MULTIPLE_SEEDS);
-    const waterTask = tasks.find((task) => task.type === TaskType.WATER_CROP || task.type === TaskType.WATER_CROP_MULTIPLE);
+    const plantTask = tasks.find(
+      (task) =>
+        task.type === TaskType.PLANT_SEED ||
+        task.type === TaskType.PLANT_MULTIPLE_SEEDS,
+    );
+    const waterTask = tasks.find(
+      (task) =>
+        task.type === TaskType.WATER_CROP ||
+        task.type === TaskType.WATER_CROP_MULTIPLE,
+    );
     if (!plantTask || !waterTask) return 1;
-    return Math.max(1, Math.round(waterTask.targetAmount / plantTask.targetAmount));
+    return Math.max(
+      1,
+      Math.round(waterTask.targetAmount / plantTask.targetAmount),
+    );
   }
 
   private clearSessionObjects(): void {
@@ -518,9 +626,8 @@ export class Game {
 
   private onTimeout(): void {
     this.state = GameState.GAME_OVER;
-    this.hud.showGameOver(
-      this.challengeManager.getCurrentTask(),
-      () => this.goToCharacterSelect(),
+    this.hud.showGameOver(this.challengeManager.getCurrentTask(), () =>
+      this.goToCharacterSelect(),
     );
   }
 
@@ -528,18 +635,25 @@ export class Game {
     this.state = GameState.COMPLETE;
     this.scoreManager.add(300);
     const completionTime = (performance.now() - this.gameStartTime) / 1000;
-    const email = this.session?.email ?? '';
+    const email = this.session?.email ?? "";
     this.hud.showRewardPreparing(email);
 
     // Send completion to server via WebSocket
     if (this.session && this.socket.isConnected()) {
-      this.socket.gameComplete(this.session.playerId, this.scoreManager.getScore(), completionTime);
+      this.socket.gameComplete(
+        this.session.playerId,
+        this.scoreManager.getScore(),
+        completionTime,
+      );
     }
 
     let emailSent = false;
     try {
       if (this.session) {
-        const result = await this.api.completeGame(this.session.sessionId, this.scoreManager.getScore());
+        const result = await this.api.completeGame(
+          this.session.sessionId,
+          this.scoreManager.getScore(),
+        );
         emailSent = result.emailSent;
       }
     } catch (error) {
@@ -561,7 +675,10 @@ export class Game {
     });
   }
 
-  private onTaskCompleted(completedTask: GameTask, nextTask: GameTask | null): void {
+  private onTaskCompleted(
+    completedTask: GameTask,
+    nextTask: GameTask | null,
+  ): void {
     if (!nextTask) return;
     this.challengeManager.setPaused(true);
     this.hud.showTaskTransition(completedTask, nextTask, () => {
@@ -580,10 +697,16 @@ export class Game {
   }
 
   private setupLighting(): void {
-    this.ambientLight = new THREE.AmbientLight(0xffffff, MAP_THEMES.rwanda.ambientIntensity);
+    this.ambientLight = new THREE.AmbientLight(
+      0xffffff,
+      MAP_THEMES.rwanda.ambientIntensity,
+    );
     this.scene.add(this.ambientLight);
 
-    this.sunLight = new THREE.DirectionalLight(0xffffff, MAP_THEMES.rwanda.sunIntensity);
+    this.sunLight = new THREE.DirectionalLight(
+      0xffffff,
+      MAP_THEMES.rwanda.sunIntensity,
+    );
     this.sunLight.position.set(10, 16, 10);
     this.sunLight.castShadow = true;
     this.sunLight.shadow.mapSize.width = 2048;
@@ -594,7 +717,11 @@ export class Game {
     this.sunLight.shadow.camera.bottom = -24;
     this.scene.add(this.sunLight);
 
-    this.hemisphereLight = new THREE.HemisphereLight(MAP_THEMES.rwanda.hemisphereSkyColor, MAP_THEMES.rwanda.hemisphereGroundColor, 0.35);
+    this.hemisphereLight = new THREE.HemisphereLight(
+      MAP_THEMES.rwanda.hemisphereSkyColor,
+      MAP_THEMES.rwanda.hemisphereGroundColor,
+      0.35,
+    );
     this.scene.add(this.hemisphereLight);
   }
 
