@@ -11,7 +11,7 @@ services:
       - PORT=3001
       - DATABASE_URL=/app/data/farmquest.db
       - EMAIL_PROVIDER=development
-      - ALLOWED_ORIGINS=http://localhost,http://localhost:80
+      - ALLOWED_ORIGINS=http://localhost,http://localhost:80,http://localhost:3000,http://127.0.0.1:3000
       - ADMIN_TOKEN=${ADMIN_TOKEN:-dev-admin-token-change-me}
     volumes:
       - db-data:/app/data
