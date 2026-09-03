@@ -46,11 +46,35 @@ db.exec(`
 const collaboratorCount = db.prepare('SELECT COUNT(*) as cnt FROM collaborators').get() as { cnt: number };
 if (collaboratorCount.cnt === 0) {
   const now = new Date().toISOString();
-  const seeds: Array<{ company_name: string; contacts: string; url?: string; display_order: number }> = [
-    { company_name: 'FarmQuest', contacts: 'hello@farmquest.app', url: 'https://farmquest.app', display_order: 0 },
-    { company_name: 'Agrisense', contacts: 'info@agrisense.com', url: 'https://agrisense.com', display_order: 1 },
-    { company_name: 'AfricaInColors', contacts: 'contact@africaincolors.com', url: 'https://africaincolors.com', display_order: 2 },
-    { company_name: "Cafe D'amour", contacts: 'hello@cafedamour.com', display_order: 3 },
+  const seeds: Array<{
+    company_name: string;
+    contacts: string;
+    url?: string;
+    display_order: number;
+  }> = [
+    {
+      company_name: "FarmQuest",
+      contacts: "nkundabagenzijeremy@gmail.com",
+      url: "https://afs.ubuhanzi.com",
+      display_order: 0,
+    },
+    {
+      company_name: "Agrisense",
+      contacts: "agrisense8@gmail.com",
+      url: "https://agrisense.rw",
+      display_order: 1,
+    },
+    {
+      company_name: "AfricaInColors",
+      contacts: "contact@africaincolors.com",
+      url: "https://africaincolors.com",
+      display_order: 2,
+    },
+    {
+      company_name: "Cafe D'amour",
+      contacts: "hello@cafedamour.com",
+      display_order: 3,
+    },
   ];
   const insert = db.prepare('INSERT INTO collaborators (id, company_name, contacts, logo_path, logo_cid, url, display_order, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)');
   for (const s of seeds) {

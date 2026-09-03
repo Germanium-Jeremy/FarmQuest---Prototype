@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import crypto from 'node:crypto';
+import { mkdirSync } from 'node:fs';
 import multer from 'multer';
 import { resolve } from 'node:path';
 import { adminAuth } from '../middleware/adminAuth.js';
@@ -32,6 +33,7 @@ export function createAdminRouter(coordinator: GameCoordinator): Router {
 
   // Upload config
   const uploadDir = resolve(process.env.UPLOAD_DIR ?? './uploads');
+  mkdirSync(uploadDir, { recursive: true });
   const storage = multer.diskStorage({
     destination: uploadDir,
     filename: (_req, file, cb) => {

@@ -54,6 +54,8 @@ app.use("/vendor", vendorPageRouter);
 app.use("/admin", adminPageRouter);
 
 const distPath = resolve(import.meta.dirname ?? ".", "../../dist");
+const uploadPath = process.env.UPLOAD_DIR ?? "./uploads";
+app.use("/uploads", express.static(uploadPath));
 app.use(express.static(distPath));
 
 app.get("/{*splat}", (req, res) => {
