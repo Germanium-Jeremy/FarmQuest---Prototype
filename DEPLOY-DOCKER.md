@@ -38,7 +38,16 @@ curl --fail http://127.0.0.1/api/health
 curl --fail http://127.0.0.1/admin | grep 'id="start-btn"'
 ```
 
-If port 80 is unavailable to the Docker daemon, set `HOST_PORT=8080` and put the existing host reverse proxy in front of that port.
+If port 80 is already occupied, do not stop the existing service blindly. Set `HOST_PORT=8080` in `.env`, then restart:
+
+```bash
+docker compose down
+docker compose up -d
+curl --fail http://127.0.0.1:8080/api/health
+curl --fail http://127.0.0.1:8080/admin | grep 'id="start-btn"'
+```
+
+The public reverse proxy on port 80 must then forward `/`, `/api/`, `/admin`, `/vendor`, and `/ws` to `127.0.0.1:8080`. The `/ws` location must preserve the WebSocket `Upgrade` and `Connection` headers. If port 80 is not needed by another service, remove `HOST_PORT` or set it back to `80` instead.
 
 ## GitHub Actions
 

@@ -66,6 +66,8 @@ The application will be available at:
 | `SMTP_USER`       | -                | SMTP username                                         |
 | `SMTP_PASS`       | -                | SMTP password                                         |
 
+If port 80 is already in use on the server, set `HOST_PORT=8080` in `.env` and place the existing host reverse proxy in front of `127.0.0.1:8080`.
+
 ### Useful Commands
 
 ```bash
