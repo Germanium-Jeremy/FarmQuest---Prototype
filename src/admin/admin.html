@@ -382,7 +382,9 @@
           ...options,
           headers: { Authorization: "Bearer " + adminToken, ...options.headers },
         });
-        return res.json();
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || "Request failed (" + res.status + ")");
+        return json;
       }
 
       async function loadCollaborators() {
@@ -428,7 +430,7 @@
         const formData = new FormData();
         formData.append("company_name", $("collab-name").value);
         formData.append("contacts", $("collab-contacts").value);
-        if ($("collab-url").value) formData.append("url", $("collab-url").value);
+        formData.append("url", $("collab-url").value);
         formData.append("display_order", $("collab-order").value);
         const file = $("collab-logo").files[0];
         if (file) formData.append("logo", file);

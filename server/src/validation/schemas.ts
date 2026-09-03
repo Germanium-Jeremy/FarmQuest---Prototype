@@ -57,9 +57,9 @@ export const createCollaboratorSchema = z.object({
 export const updateCollaboratorSchema = z.object({
   company_name: z.string().trim().min(1).max(100).optional(),
   contacts: z.string().trim().min(1).max(500).optional(),
-  url: z.string().url('Invalid URL').max(500).optional().or(z.literal('')).transform(v => v || undefined),
-  display_order: z.number().int().min(0).max(999).optional(),
-  active: z.number().int().min(0).max(1).optional(),
+  url: z.string().max(500).optional().or(z.literal('')).transform(v => v || undefined),
+  display_order: z.coerce.number().int().min(0).max(999).optional(),
+  active: z.coerce.number().int().min(0).max(1).optional(),
 });
 
 // ─── Vendor admin schemas ──────────────────────────────────────────
@@ -75,6 +75,7 @@ export const updateVendorSchema = z.object({
   username: z.string().trim().min(1).max(50).optional(),
   location_name: z.string().trim().min(1).max(100).optional(),
   contact_email: email.optional(),
+  active: z.coerce.number().int().min(0).max(1).optional(),
 });
 
 export const reorderCollaboratorsSchema = z.object({

@@ -53,7 +53,7 @@ if (collaboratorCount.cnt === 0) {
     display_order: number;
   }> = [
     {
-      company_name: "FarmQuest",
+      company_name: "Farm Quest",
       contacts: "nkundabagenzijeremy@gmail.com",
       url: "https://afs.ubuhanzi.com",
       display_order: 0,
