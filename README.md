@@ -38,7 +38,7 @@ Open http://localhost:3000 in your browser.
 ```bash
 # Clone and configure
 cp .env.example .env
-# Edit .env and set a secure ADMIN_TOKEN
+# Set HOST_PORT, ALLOWED_ORIGINS, and a secure ADMIN_TOKEN in .env
 
 # Build and start
 docker compose up -d --build
@@ -48,21 +48,23 @@ make prod
 ```
 
 The application will be available at:
+
 - **Game:** http://localhost
 - **Admin Dashboard:** http://localhost/admin
 - **Vendor Portal:** http://localhost/vendor
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `80` | External port (nginx) |
-| `ADMIN_TOKEN` | `dev-admin-token-change-me` | Token for admin dashboard access |
-| `EMAIL_PROVIDER` | `development` | `development` (console) or `smtp` |
-| `SMTP_HOST` | `smtp.gmail.com` | SMTP server host |
-| `SMTP_PORT` | `465` | SMTP server port |
-| `SMTP_USER` | - | SMTP username |
-| `SMTP_PASS` | - | SMTP password |
+| Variable          | Default          | Description                                           |
+| ----------------- | ---------------- | ----------------------------------------------------- |
+| `HOST_PORT`       | `80`             | External port (nginx)                                 |
+| `ALLOWED_ORIGINS` | -                | Comma-separated production browser origins (required) |
+| `ADMIN_TOKEN`     | -                | Token for admin dashboard access (required)           |
+| `EMAIL_PROVIDER`  | `development`    | `development` (console) or `smtp`                     |
+| `SMTP_HOST`       | `smtp.gmail.com` | SMTP server host                                      |
+| `SMTP_PORT`       | `465`            | SMTP server port                                      |
+| `SMTP_USER`       | -                | SMTP username                                         |
+| `SMTP_PASS`       | -                | SMTP password                                         |
 
 ### Useful Commands
 
