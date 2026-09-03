@@ -71,6 +71,8 @@ export interface VendorRow {
   username: string;
   password_hash: string;
   location_name: string;
+  contact_email: string;
+  must_change_password: number;
   created_at: string;
 }
 
@@ -79,4 +81,17 @@ export interface VendorSessionRow {
   vendor_id: string;
   token: string;
   expires_at: string;
+}
+
+export interface CollaboratorRow {
+  id: string;
+  company_name: string;
+  contacts: string;
+  logo_path: string | null;
+  logo_cid: string | null;
+  url: string | null;
+  display_order: number;
+  active: number;
+  created_at: string;
+  updated_at: string;
 }

@@ -41,4 +41,15 @@ export class CouponService {
       },
     });
   }
+
+  async generateQrBuffer(code: string): Promise<Buffer> {
+    return QRCode.toBuffer(code, {
+      width: 200,
+      margin: 2,
+      color: {
+        dark: '#173320',
+        light: '#ffffff',
+      },
+    });
+  }
 }

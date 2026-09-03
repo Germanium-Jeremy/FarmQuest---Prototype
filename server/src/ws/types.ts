@@ -40,7 +40,7 @@ export type ServerMessage =
   | { type: 'error'; message: string };
 
 export type AdminMessage =
-  | { type: 'admin_start_game'; mapId: string; adminToken: string }
+  | { type: 'admin_start_game'; mapId: string; adminToken: string }  // Deprecated: games auto-start
   | { type: 'admin_end_game'; adminToken: string };
 
 export type AdminBroadcast =

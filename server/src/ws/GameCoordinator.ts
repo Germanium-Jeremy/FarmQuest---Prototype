@@ -25,6 +25,7 @@ export class GameCoordinator {
   private currentTasks: GameTaskData[] = [];
   private completions: Array<{ playerId: string; displayName: string; score: number; completionTime: number }> = [];
   private activePlayerIds: Set<string> = new Set();
+  private startPending = false;
 
   getLobby(): LobbyPlayer[] { return [...this.lobby.values()]; }
   getLobbyCount(): number { return this.lobby.size; }
@@ -43,11 +44,23 @@ export class GameCoordinator {
     return player;
   }
 
+  /**
+   * Auto-start the game when the first player joins.
+   * Returns null if the game is already in play or a start is already pending.
+   * Returns the start info if this call triggers the start.
+   */
+  autoStartGame(mapId: string): { instanceId: string; tasks: GameTaskData[] } | null {
+    if (this.status === 'IN_PLAY' || this.startPending) return null;
+    this.startPending = true;
+    return this.startGame(mapId);
+  }
+
   startGame(mapId: string): { instanceId: string; tasks: GameTaskData[] } {
     if (this.lobby.size === 0) {
       throw new Error('No players in the lobby.');
     }
     this.status = 'IN_PLAY';
+    this.startPending = false;
     this.currentInstanceId = randomUUID();
     this.completions = [];
     this.currentTasks = this.generateTasks(mapId);
@@ -69,6 +82,7 @@ export class GameCoordinator {
 
   endGame(): { leaderboard: LeaderboardEntry[] } {
     this.status = 'FINISHED';
+    this.startPending = false;
     const leaderboard = this.completions.map((c, i) => ({
       rank: i + 1, playerId: c.playerId, displayName: c.displayName,
       score: c.score, completionTime: c.completionTime,
@@ -77,11 +91,22 @@ export class GameCoordinator {
     return { leaderboard };
   }
 
+  /** Get top players for reward issuance (min(completed, 10)) */
   getTopPlayers(): Array<{ playerId: string; score: number; completionTime: number; rank: number; rewardType?: string }> {
-    return this.completions.slice(0, 10).map((c, i) => ({
+    const maxRewards = Math.min(this.completions.length, 10);
+    return this.completions.slice(0, maxRewards).map((c, i) => ({
       playerId: c.playerId, score: c.score, completionTime: c.completionTime,
       rank: i + 1, rewardType: REWARD_TYPES[i],
     }));
+  }
+
+  /** Check if all active players have completed or timed out */
+  allPlayersFinished(): boolean {
+    if (this.status !== 'IN_PLAY') return false;
+    for (const playerId of this.activePlayerIds) {
+      if (!this.completions.some(c => c.playerId === playerId)) return false;
+    }
+    return true;
   }
 
   getActivePlayerIds(): Set<string> { return this.activePlayerIds; }
@@ -93,6 +118,7 @@ export class GameCoordinator {
     this.currentTasks = [];
     this.completions = [];
     this.activePlayerIds.clear();
+    this.startPending = false;
   }
 
   private generateTasks(_mapId: string): GameTaskData[] {

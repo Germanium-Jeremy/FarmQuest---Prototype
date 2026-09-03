@@ -27,14 +27,6 @@ export interface GameInstanceResponse {
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
 const ACCOUNTS_KEY = 'farmquest.accounts';
 
-export class AccountNotFoundError extends Error {
-  constructor() {
-    super('Account not found');
-    this.name = 'AccountNotFoundError';
-  }
-}
-
-
 interface StoredAccount {
   email: string;
   displayName: string;
@@ -51,9 +43,9 @@ export class FarmQuestApi {
     }
   }
 
-  async registerPlayer(email: string, displayName?: string): Promise<PlayerSession> {
+  async registerPlayer(email: string, displayName: string): Promise<PlayerSession> {
     const normalizedEmail = email.trim().toLowerCase();
-    const name = displayName?.trim() || undefined;
+    const name = displayName.trim();
     try {
       const response = await this.post<{ playerId: string; sessionId: string; displayName?: string }>('/players/register', {
         email: normalizedEmail,
@@ -68,31 +60,6 @@ export class FarmQuestApi {
       const session = this.localSession(normalizedEmail, name || known?.displayName, known?.playerId);
       this.rememberAccount(normalizedEmail, session.displayName ?? 'Player', session.playerId);
       return session;
-    }
-  }
-
-  async loginPlayer(email: string): Promise<PlayerSession> {
-    const normalizedEmail = email.trim().toLowerCase();
-    try {
-      const response = await fetch(`${API_BASE}/players/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail }),
-      });
-      if (!response.ok) {
-        if (response.status === 404 || response.status === 400) throw new AccountNotFoundError();
-        throw new Error('Login failed');
-      }
-      const payload = await response.json() as { playerId: string; sessionId: string; displayName?: string };
-      const session = this.toSession(payload, normalizedEmail);
-      this.rememberAccount(normalizedEmail, session.displayName ?? 'Player', session.playerId);
-      return session;
-    } catch (error) {
-      if (error instanceof AccountNotFoundError) throw error;
-      // Fallback to local session for development
-      const known = this.getAccounts().find((account) => account.email === normalizedEmail);
-      if (!known) throw new AccountNotFoundError();
-      return this.localSession(normalizedEmail, known.displayName, known.playerId);
     }
   }
 

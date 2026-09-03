@@ -5,28 +5,11 @@ import { newSessionSchema, registerSchema } from '../validation/schemas.js';
 
 export const playersRouter = Router();
 
-// POST /api/players/register — register or login with email
+// POST /api/players/register — register a new player (email + display name required)
 playersRouter.post('/register', (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ message: 'Invalid registration details.' });
-    return;
-  }
-
-  const player = upsertPlayer(parsed.data.email, parsed.data.displayName);
-  const session = createSession(player.id);
-  res.json({
-    playerId: player.id,
-    sessionId: session.id,
-    displayName: player.display_name ?? 'Player',
-  });
-});
-
-// POST /api/players/login — functionally identical to register (email-based)
-playersRouter.post('/login', (req, res) => {
-  const parsed = registerSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ message: 'Invalid login details.' });
+    res.status(400).json({ message: 'Invalid registration details.', errors: parsed.error.flatten() });
     return;
   }
 

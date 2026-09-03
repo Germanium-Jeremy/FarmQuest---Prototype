@@ -40,7 +40,12 @@ export class EventHandler {
   handleAdminMessage(connId: string, message: AdminMessage): void {
     switch (message.type) {
       case "admin_start_game":
-        this.handleAdminStartGame(message, connId);
+        // Deprecated: admin can no longer start games.
+        // Games auto-start when the first player joins.
+        this.socketManager.sendToClient(connId, {
+          type: "error",
+          message: "Games start automatically when players join.",
+        });
         break;
       case "admin_end_game":
         this.handleAdminEndGame();
@@ -64,6 +69,10 @@ export class EventHandler {
       const instanceId = this.coordinator.getCurrentInstanceId();
       if (instanceId)
         updateInstancePlayerStatus(instanceId, player.databaseId, "TIMEOUT");
+      // Check if all remaining active players have finished
+      if (this.coordinator.allPlayersFinished()) {
+        void this.finishGame();
+      }
     }
   }
 
@@ -77,8 +86,6 @@ export class EventHandler {
       mapId: string;
     },
   ): void {
-    // Use connId (the sessionId from the URL) as the playerId so it matches the WebSocket connection key
-    // Store the original database playerId in databaseId for DB operations
     const player: LobbyPlayer = {
       playerId: connId,
       databaseId: message.playerId,
@@ -88,8 +95,16 @@ export class EventHandler {
       mapId: message.mapId,
     };
     this.coordinator.joinLobby(player);
+
+    // Auto-start game on first player join
+    if (this.coordinator.getStatus() === "WAITING" && this.coordinator.getLobbyCount() === 1) {
+      this.autoStartGame(player, message.mapId);
+      return;
+    }
+
+    // If game is already in play, register player for existing instance
     const instanceId = this.coordinator.getCurrentInstanceId();
-    if (instanceId)
+    if (instanceId) {
       registerPlayerForInstance(
         instanceId,
         message.playerId,
@@ -97,6 +112,9 @@ export class EventHandler {
         player.characterType,
         player.mapId,
       );
+      updateInstancePlayerStatus(instanceId, message.playerId, "PLAYING");
+    }
+
     this.socketManager.broadcastToClients({
       type: "lobby_update",
       players: this.coordinator.getLobby(),
@@ -115,11 +133,59 @@ export class EventHandler {
     });
   }
 
+  private autoStartGame(player: LobbyPlayer, mapId: string): void {
+    try {
+      const result = this.coordinator.autoStartGame(mapId);
+      if (!result) return; // Already started
+
+      // Persist event instance
+      const instance = createEventInstance(mapId);
+      updateInstanceStatus(instance.id, "IN_PLAY");
+
+      // Register all lobby players
+      for (const p of this.coordinator.getLobby()) {
+        registerPlayerForInstance(
+          instance.id,
+          p.databaseId,
+          p.playerId,
+          p.characterType,
+          p.mapId,
+        );
+        updateInstancePlayerStatus(instance.id, p.databaseId, "PLAYING");
+      }
+
+      this.socketManager.broadcastToAdmins({
+        type: "game_started",
+        instanceId: instance.id,
+      });
+
+      // Send game_start to all lobby players
+      for (const p of this.coordinator.getLobby()) {
+        this.socketManager.sendToClient(p.playerId, {
+          type: "game_start",
+          instanceId: instance.id,
+          mapId,
+          tasks: result.tasks.map((t) => ({
+            id: t.id,
+            type: t.type,
+            cropType: t.cropType,
+            targetAmount: t.targetAmount,
+            currentAmount: t.currentAmount,
+            timeLimit: t.timeLimit,
+            scoreReward: t.scoreReward,
+            description: t.description,
+          })),
+        });
+      }
+    } catch (error: any) {
+      console.error("Auto-start failed:", error);
+    }
+  }
+
   private handleGameComplete(
     connId: string,
     message: { playerId: string; score: number; completionTime: number },
   ): void {
-    // Use connId to look up the player in the lobby (keyed by sessionId)
     const result = this.coordinator.playerComplete(
       connId,
       message.score,
@@ -131,7 +197,6 @@ export class EventHandler {
       .find((l) => l.playerId === connId);
     const instanceId = this.coordinator.getCurrentInstanceId();
     if (instanceId) {
-      // Use the original database playerId for DB operations
       const dbId = lobbyPlayer?.databaseId ?? message.playerId;
       updateInstancePlayerStatus(
         instanceId,
@@ -169,67 +234,10 @@ export class EventHandler {
       rank: result.rank,
       score: message.score,
     });
-    if (this.coordinator.getTopPlayers().length >= 10) this.finishGame();
-  }
 
-  private handleAdminStartGame(
-    message: { mapId: string; adminToken: string },
-    connId: string,
-  ): void {
-    if (message.adminToken !== ADMIN_TOKEN) {
-      this.socketManager.sendToClient(connId, {
-        type: "error",
-        message: "Admin authorization failed.",
-      });
-      return;
-    }
-    try {
-      const { instanceId: coordinatorId, tasks } = this.coordinator.startGame(
-        message.mapId,
-      );
-
-      // Persist event instance
-      const instance = createEventInstance(message.mapId);
-      updateInstanceStatus(instance.id, "IN_PLAY");
-
-      // Register all lobby players to this instance
-      for (const player of this.coordinator.getLobby()) {
-        registerPlayerForInstance(
-          instance.id,
-          player.databaseId,
-          player.playerId,
-          player.characterType,
-          player.mapId,
-        );
-        updateInstancePlayerStatus(instance.id, player.databaseId, "PLAYING");
-      }
-
-      this.socketManager.broadcastToAdmins({
-        type: "game_started",
-        instanceId: instance.id,
-      });
-      for (const player of this.coordinator.getLobby()) {
-        this.socketManager.sendToClient(player.playerId, {
-          type: "game_start",
-          instanceId: instance.id,
-          mapId: message.mapId,
-          tasks: tasks.map((t) => ({
-            id: t.id,
-            type: t.type,
-            cropType: t.cropType,
-            targetAmount: t.targetAmount,
-            currentAmount: t.currentAmount,
-            timeLimit: t.timeLimit,
-            scoreReward: t.scoreReward,
-            description: t.description,
-          })),
-        });
-      }
-    } catch (error: any) {
-      this.socketManager.sendToClient(connId, {
-        type: "error",
-        message: error.message ?? "Failed to start game.",
-      });
+    // Check if all active players have finished → auto-finish
+    if (this.coordinator.allPlayersFinished()) {
+      void this.finishGame();
     }
   }
 
@@ -238,11 +246,17 @@ export class EventHandler {
   }
 
   private async finishGame(): Promise<void> {
+    if (this.coordinator.getStatus() !== "IN_PLAY") return;
     const { leaderboard } = this.coordinator.endGame();
+    const instanceId = this.coordinator.getCurrentInstanceId();
+    if (instanceId) updateInstanceStatus(instanceId, "FINISHED");
+
     this.socketManager.broadcastToAdmins({
       type: "game_finished",
       leaderboard,
     });
+
+    // Send game_finished to each player
     for (const entry of leaderboard) {
       const lobbyPlayer = this.coordinator
         .getLobby()
@@ -254,36 +268,39 @@ export class EventHandler {
           yourRank: entry.rank,
         });
       }
+    }
 
-      if (entry.rank <= 10) {
-        try {
-          const player = getPlayerDb(entry.playerId);
-          const lobbyPlayer = this.coordinator
-            .getLobby()
-            .find((l) => l.databaseId === entry.playerId);
-          if (!player || !lobbyPlayer) continue;
+    // Issue rewards for top min(completed, 10)
+    const topPlayers = this.coordinator.getTopPlayers();
+    for (const entry of topPlayers) {
+      try {
+        const player = getPlayerDb(entry.playerId);
+        const lobbyPlayer = this.coordinator
+          .getLobby()
+          .find((l) => l.databaseId === entry.playerId);
+        if (!player || !lobbyPlayer) continue;
 
-          // Coupons belong to the player's game session, not the event instance.
-          const { coupon } = couponService.getOrCreateCoupon(
-            player.id,
-            lobbyPlayer.sessionId,
-          );
+        // Idempotent: get existing coupon or create new one
+        const { coupon, alreadyIssued } = couponService.getOrCreateCoupon(
+          player.id,
+          lobbyPlayer.sessionId,
+        );
 
-          if (coupon.status !== "SENT") {
-            await emailService.sendCouponEmail({
-              to: player.email,
-              couponCode: coupon.code,
-              rewardName: entry.rewardType ?? "Gift",
-              score: entry.score,
-            });
-            markCouponSent(coupon.id);
-          }
-        } catch (error) {
-          console.error(
-            `Failed to issue reward for player ${entry.playerId}:`,
-            error,
-          );
+        // Only send email if not already sent
+        if (coupon.status !== "SENT") {
+          await emailService.sendCouponEmail({
+            to: player.email,
+            couponCode: coupon.code,
+            rewardName: entry.rewardType ?? "Gift",
+            score: entry.score,
+          });
+          markCouponSent(coupon.id);
         }
+      } catch (error) {
+        console.error(
+          `Failed to issue reward for player ${entry.playerId}:`,
+          error,
+        );
       }
     }
   }

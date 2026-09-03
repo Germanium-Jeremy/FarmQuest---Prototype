@@ -88,14 +88,14 @@ export class HUD {
   }
 
   showRegistration(
-    onRegister: (email: string, displayName?: string) => void,
+    onRegister: (email: string, displayName: string) => void,
     errorMessage = "",
     loading = false,
   ): void {
     this.hideHUD();
     this.hideTaskModal();
     this.screenEl.style.display = "flex";
-    this.screenEl.innerHTML = `<form id="reg-form" style="width:min(92vw,560px);background:linear-gradient(145deg,#fdf8df,#ecd17a);color:#193620;border-radius:24px;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,0.3);"><h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 8px;font-weight:1000;">FarmQuest</h1><p style="font-size:19px;margin:0 0 20px;font-weight:800;color:#315033;">Enter your email to start.</p><label style="display:block;text-align:left;font-weight:1000;margin:0 0 8px;">Email Address</label><input id="email-input" type="email" autocomplete="email" placeholder="player@example.com" style="${this.inp()}" /><label style="display:block;text-align:left;font-weight:1000;margin:14px 0 8px;">Display Name <span style="font-weight:700;color:#5d744d;">optional</span></label><input id="name-input" type="text" maxlength="40" placeholder="Player" style="${this.inp()}" />${errorMessage ? `<div style="margin-top:14px;color:#b52828;font-weight:900;">${errorMessage}</div>` : ""}<button type="submit" style="${this.btn("#2f8f3a")};margin-top:20px;" ${loading ? "disabled" : ""}>${loading ? "Starting..." : "Start FarmQuest"}</button></form>`;
+    this.screenEl.innerHTML = `<form id="reg-form" style="width:min(92vw,560px);background:linear-gradient(145deg,#fdf8df,#ecd17a);color:#193620;border-radius:24px;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,0.3);"><h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 8px;font-weight:1000;">FarmQuest</h1><p style="font-size:19px;margin:0 0 20px;font-weight:800;color:#315033;">Enter your details to start playing.</p><label style="display:block;text-align:left;font-weight:1000;margin:0 0 8px;">Email Address *</label><input id="email-input" type="email" autocomplete="email" placeholder="player@example.com" required style="${this.inp()}" /><label style="display:block;text-align:left;font-weight:1000;margin:14px 0 8px;">Display Name *</label><input id="name-input" type="text" maxlength="40" placeholder="Player" required style="${this.inp()}" />${errorMessage ? `<div style="margin-top:14px;color:#b52828;font-weight:900;">${errorMessage}</div>` : ""}<button type="submit" style="${this.btn("#2f8f3a")};margin-top:20px;" ${loading ? "disabled" : ""}>${loading ? "Starting..." : "Play"}</button></form>`;
     document.getElementById("reg-form")!.addEventListener("submit", (e) => {
       e.preventDefault();
       onRegister(
@@ -111,43 +111,6 @@ export class HUD {
         .getElementById(id)
         ?.addEventListener("keyup", (e) => e.stopPropagation());
     }
-  }
-
-  showLogin(
-    onLogin: (email: string) => void,
-    onRegister: (email: string, displayName: string) => void,
-    errorMessage = "",
-    loading = false,
-  ): void {
-    this.hideHUD();
-    this.hideTaskModal();
-    this.screenEl.style.display = "flex";
-    this.screenEl.innerHTML = `<div style="width:min(92vw,560px);background:linear-gradient(145deg,#fdf8df,#ecd17a);color:#193620;border-radius:24px;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,0.3);"><h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 8px;font-weight:1000;">FarmQuest</h1><p style="font-size:19px;margin:0 0 20px;font-weight:800;color:#315033;">Login or create an account to play.</p><div id="login-mode"><label style="display:block;text-align:left;font-weight:1000;margin:0 0 8px;">Email Address</label><input id="login-email" type="email" autocomplete="email" placeholder="player@example.com" style="${this.inp()}" />${errorMessage ? `<div style="margin-top:14px;color:#b52828;font-weight:900;">${errorMessage}</div>` : ""}<button id="login-btn" style="${this.btn("#2f8f3a")};margin-top:20px;" ${loading ? "disabled" : ""}>${loading ? "Logging in..." : "Login"}</button><div style="margin-top:16px;font-size:15px;color:#5d744d;">Don't have an account? <a href="#" id="show-reg" style="color:#2f8f3a;font-weight:900;">Register</a></div></div><div id="reg-mode" style="display:none;"><label style="display:block;text-align:left;font-weight:1000;margin:0 0 8px;">Email Address</label><input id="reg-email" type="email" autocomplete="email" placeholder="player@example.com" style="${this.inp()}" /><label style="display:block;text-align:left;font-weight:1000;margin:14px 0 8px;">Display Name</label><input id="reg-name" type="text" maxlength="40" placeholder="Player" style="${this.inp()}" /><button id="reg-btn" style="${this.btn("#2f8f3a")};margin-top:20px;" ${loading ? "disabled" : ""}>${loading ? "Creating..." : "Create Account"}</button><div style="margin-top:16px;font-size:15px;color:#5d744d;">Already have an account? <a href="#" id="show-login" style="color:#2f8f3a;font-weight:900;">Login</a></div></div></div>`;
-    document.getElementById("show-reg")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      (document.getElementById("login-mode") as HTMLElement).style.display =
-        "none";
-      (document.getElementById("reg-mode") as HTMLElement).style.display =
-        "block";
-    });
-    document.getElementById("show-login")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      (document.getElementById("reg-mode") as HTMLElement).style.display =
-        "none";
-      (document.getElementById("login-mode") as HTMLElement).style.display =
-        "block";
-    });
-    document.getElementById("login-btn")?.addEventListener("click", () => {
-      const e = (document.getElementById("login-email") as HTMLInputElement)
-        .value;
-      if (e) onLogin(e);
-    });
-    document.getElementById("reg-btn")?.addEventListener("click", () => {
-      const e = (document.getElementById("reg-email") as HTMLInputElement)
-        .value;
-      const n = (document.getElementById("reg-name") as HTMLInputElement).value;
-      if (e) onRegister(e, n);
-    });
   }
 
   showCharacterSelect(
@@ -222,8 +185,7 @@ export class HUD {
     this.screenEl.querySelector("div")?.appendChild(btn);
   }
 
-  showLobby(
-    playerCount: number,
+  showWaitingForStart(
     displayName: string,
     characterType: string,
     mapName: string,
@@ -241,7 +203,7 @@ export class HUD {
       sudan: "🏜️",
       seychelles: "🌊",
     };
-    this.screenEl.innerHTML = `<div style="width:min(92vw,500px);"><h1 style="font-size:clamp(34px,7vw,52px);margin:0 0 10px;">⏳ Waiting to Start</h1><p style="font-size:20px;color:#d8f5c6;margin:0 0 20px;">Connected Players: <strong>${playerCount}</strong></p><div style="background:rgba(255,255,255,0.1);border-radius:14px;padding:16px;margin-bottom:20px;"><div style="font-size:18px;margin-bottom:6px;">Your Character: ${ci[characterType] ?? "👤"} ${characterType}</div><div style="font-size:18px;">Your Map: ${mi[mapName] ?? "🌍"} ${mapName}</div></div><p style="font-size:16px;color:#b8c9b2;">The game will start when the admin begins the session.</p></div>`;
+    this.screenEl.innerHTML = `<div style="width:min(92vw,500px);"><h1 style="font-size:clamp(34px,7vw,52px);margin:0 0 10px;">🌾 Joining Game...</h1><p style="font-size:18px;color:#d8f5c6;margin:0 0 20px;">Your character: ${ci[characterType] ?? "👤"} ${characterType}</p><p style="font-size:18px;color:#d8f5c6;margin:0 0 20px;">Map: ${mi[mapName] ?? "🌍"} ${mapName}</p><div style="background:rgba(255,255,255,0.1);border-radius:14px;padding:16px;margin-bottom:20px;"><p style="font-size:16px;color:#b8c9b2;">Starting game shortly...</p></div></div>`;
   }
 
   showLeaderboard(
@@ -336,7 +298,7 @@ export class HUD {
     this.hideHUD();
     this.hideTaskModal();
     this.screenEl.style.display = "flex";
-    this.screenEl.innerHTML = `<div style="width:min(92vw,600px);"><h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 10px;color:#bff28a;">🎉 FarmQuest Complete!</h1><p style="font-size:24px;color:#e9f6e4;margin:0 0 8px;font-weight:900;">All tasks completed!</p><p style="font-size:28px;color:#ffe36d;margin:0 0 22px;">⭐ Final Score: ${this.scoreManager.getScore()}</p><div style="display:inline-block;background:rgba(255,227,109,0.12);border:2px solid #ffe36d;border-radius:18px;padding:22px 32px;margin-bottom:24px;"><h2 style="font-size:28px;margin:0 0 8px;color:#ffe36d;">🎁 Reward Unlocked</h2><p style="font-size:21px;margin:0 0 14px;">${emailSent ? "Your coupon has been sent to:" : "Your reward was created, but the email could not be sent."}</p><div style="font-size:22px;font-weight:1000;margin-bottom:14px;">${this.mask(email)}</div><div style="font-size:22px;margin-top:16px;">Free Coffee ☕</div></div><br><button id="retry-btn" style="${this.btn("#52a447")}">Play Again</button></div>`;
+    this.screenEl.innerHTML = `<div style="width:min(92vw,600px);"><h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 10px;color:#bff28a;">🎉 FarmQuest Complete!</h1><p style="font-size:24px;color:#e9f6e4;margin:0 0 8px;font-weight:900;">All tasks completed!</p><p style="font-size:28px;color:#ffe36d;margin:0 0 22px;">⭐ Final Score: ${this.scoreManager.getScore()}</p><div style="display:inline-block;background:rgba(255,227,109,0.12);border:2px solid #ffe36d;border-radius:18px;padding:22px 32px;margin-bottom:24px;"><h2 style="font-size:28px;margin:0 0 8px;color:#ffe36d;">🎁 Reward Pending</h2><p style="font-size:21px;margin:0 0 14px;">Your results are being finalized. Top 10 players will receive reward emails when the event ends.</p><div style="font-size:22px;font-weight:1000;margin-bottom:14px;">${this.mask(email)}</div></div><br><button id="retry-btn" style="${this.btn("#52a447")}">Play Again</button></div>`;
     document.getElementById("retry-btn")?.addEventListener("click", onRetry);
   }
 
@@ -344,7 +306,7 @@ export class HUD {
     this.hideHUD();
     this.hideTaskModal();
     this.screenEl.style.display = "flex";
-    this.screenEl.innerHTML = `<div style="width:min(92vw,560px);"><h1 style="font-size:clamp(34px,7vw,52px);margin:0 0 14px;color:#bff28a;">Preparing Your Reward...</h1><p style="font-size:21px;color:#e9f6e4;">Sending your coupon to ${this.mask(email)}.</p></div>`;
+    this.screenEl.innerHTML = `<div style="width:min(92vw,560px);"><h1 style="font-size:clamp(34px,7vw,52px);margin:0 0 14px;color:#bff28a;">Preparing Your Reward...</h1><p style="font-size:21px;color:#e9f6e4;">Sending results to ${this.mask(email)}.</p></div>`;
   }
 
   showPrompt(text: string): void {

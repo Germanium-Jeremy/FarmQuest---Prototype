@@ -48,7 +48,7 @@ export class Game {
   private socket = new GameSocket();
   private session: PlayerSession | null = null;
   private spawnManager: SpawnManager;
-  private state: GameState = GameState.LOGIN;
+  private state: GameState = GameState.REGISTER;
   private sessionGroup = new THREE.Group();
   private seeds: Seed[] = [];
   private crops: Crop[] = [];
@@ -110,23 +110,11 @@ export class Game {
     this.setupSocketHandlers();
     window.addEventListener("resize", () => this.onResize());
 
-    // Start with login screen
-    this.showLoginScreen();
+    // Start with registration screen
+    this.showRegisterScreen();
   }
 
   private setupSocketHandlers(): void {
-    this.socket.on("lobby_update", (data) => {
-      const msg = data as { count: number };
-      if (this.state === GameState.LOBBY) {
-        this.hud.showLobby(
-          msg.count,
-          this.session?.displayName ?? "Player",
-          this.selectedCharacterType,
-          this.selectedMapId,
-        );
-      }
-    });
-
     this.socket.on("game_start", (data) => {
       const msg = data as {
         instanceId: string;
@@ -167,34 +155,11 @@ export class Game {
     });
   }
 
-  private showLoginScreen(): void {
-    this.state = GameState.LOGIN;
-    this.hud.showLogin(
-      (email) => this.handleLogin(email),
+  private showRegisterScreen(): void {
+    this.state = GameState.REGISTER;
+    this.hud.showRegistration(
       (email, displayName) => this.handleRegister(email, displayName),
     );
-  }
-
-  private async handleLogin(email: string): Promise<void> {
-    if (!isValidEmail(email)) {
-      this.hud.showLogin(
-        (e) => this.handleLogin(e),
-        (e, d) => this.handleRegister(e, d),
-        "Please enter a valid email address.",
-      );
-      return;
-    }
-    try {
-      this.session = await this.api.loginPlayer(email);
-      this.goToCharacterSelect();
-    } catch (error) {
-      console.error(error);
-      this.hud.showLogin(
-        (e) => this.handleLogin(e),
-        (e, d) => this.handleRegister(e, d),
-        "We couldn't connect. Please check your connection and try again.",
-      );
-    }
   }
 
   private async handleRegister(
@@ -202,10 +167,16 @@ export class Game {
     displayName: string,
   ): Promise<void> {
     if (!isValidEmail(email)) {
-      this.hud.showLogin(
-        (e) => this.handleLogin(e),
+      this.hud.showRegistration(
         (e, d) => this.handleRegister(e, d),
         "Please enter a valid email address.",
+      );
+      return;
+    }
+    if (!displayName || !displayName.trim()) {
+      this.hud.showRegistration(
+        (e, d) => this.handleRegister(e, d),
+        "Display name is required.",
       );
       return;
     }
@@ -214,8 +185,7 @@ export class Game {
       this.goToCharacterSelect();
     } catch (error) {
       console.error(error);
-      this.hud.showLogin(
-        (e) => this.handleLogin(e),
+      this.hud.showRegistration(
         (e, d) => this.handleRegister(e, d),
         "We couldn't create your account. Please try again.",
       );
@@ -241,18 +211,24 @@ export class Game {
     this.state = GameState.MAP_SELECT;
     this.hud.showMapSelect(MAP_OPTIONS, (id) => {
       this.selectedMapId = id as MapId;
-      this.goToLobby();
+      this.joinGame();
     });
   }
 
-  private async goToLobby(): Promise<void> {
-    this.state = GameState.LOBBY;
+  private async joinGame(): Promise<void> {
     if (this.session) {
       try {
         await this.socket.connect(this.session.sessionId);
         this.socket.joinLobby(
           this.session!.playerId,
           this.session!.displayName ?? "Player",
+          this.selectedCharacterType,
+          this.selectedMapId,
+        );
+        // Game will start automatically when server processes the first join.
+        // The game_start message is handled in setupSocketHandlers.
+        this.hud.showWaitingForStart(
+          this.session?.displayName ?? "Player",
           this.selectedCharacterType,
           this.selectedMapId,
         );
@@ -263,12 +239,6 @@ export class Game {
     } else {
       this.startLocalGame();
     }
-    this.hud.showLobby(
-      1,
-      this.session?.displayName ?? "Player",
-      this.selectedCharacterType,
-      this.selectedMapId,
-    );
   }
 
   private startLocalGame(): void {
@@ -545,18 +515,15 @@ export class Game {
     if (
       task.type === TaskType.PLANT_SEED ||
       task.type === TaskType.PLANT_MULTIPLE_SEEDS
-    )
-      return crop.isReadyToPlant() && this.plantQueue.length > 0;
+    ) return crop.isReadyToPlant() && this.plantQueue.length > 0;
     if (
       task.type === TaskType.WATER_CROP ||
       task.type === TaskType.WATER_CROP_MULTIPLE
-    )
-      return crop.isReadyToWater();
+    ) return crop.isReadyToWater();
     if (
       task.type === TaskType.HARVEST_CROP ||
       task.type === TaskType.HARVEST_MULTIPLE
-    )
-      return crop.isReadyToHarvest();
+    ) return crop.isReadyToHarvest();
     return false;
   }
 
@@ -647,20 +614,19 @@ export class Game {
       );
     }
 
-    let emailSent = false;
+    // Also send via REST for redundancy
     try {
       if (this.session) {
-        const result = await this.api.completeGame(
+        await this.api.completeGame(
           this.session.sessionId,
           this.scoreManager.getScore(),
         );
-        emailSent = result.emailSent;
       }
     } catch (error) {
       console.error(error);
     }
 
-    this.hud.showComplete(email, emailSent, () => {
+    this.hud.showComplete(email, false, () => {
       this.goToCharacterSelect();
     });
   }

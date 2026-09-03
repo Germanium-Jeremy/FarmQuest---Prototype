@@ -1,21 +1,16 @@
 import '../config/env.js';
 import { Router } from 'express';
-import { CouponService } from '../services/CouponService.js';
-import { createEmailService } from '../services/EmailService.js';
 import { InstanceTaskService } from '../services/InstanceTaskService.js';
 import {
   completeSession,
   getCompletedLevels,
   getPlayer,
   getSession,
-  markCouponSent,
   recordLevelComplete,
 } from '../storage/database.js';
 import { gameCompleteSchema, instanceStartSchema, levelCompleteSchema } from '../validation/schemas.js';
 
 export const gameResultsRouter = Router();
-const couponService = new CouponService();
-const emailService = createEmailService();
 const instanceTaskService = new InstanceTaskService();
 
 gameResultsRouter.post('/instance', (req, res) => {
@@ -59,6 +54,9 @@ gameResultsRouter.post('/level-complete', (req, res) => {
   res.json({ ok: true });
 });
 
+// Game completion endpoint — marks session complete but does NOT issue rewards.
+// Rewards are finalized server-side when the game event ends (all players finished
+// or admin ends the game). The WebSocket path handles reward issuance.
 gameResultsRouter.post('/complete', async (req, res) => {
   const parsed = gameCompleteSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -72,35 +70,12 @@ gameResultsRouter.post('/complete', async (req, res) => {
     return;
   }
 
-  const player = getPlayer(session.player_id);
-  if (!player) {
-    res.status(404).json({ message: 'Player not found.' });
-    return;
-  }
-
   completeSession(session.id, parsed.data.score);
-  const { coupon, alreadyIssued } = couponService.getOrCreateCoupon(player.id, session.id);
-  let emailSent = coupon.status === 'SENT';
-
-  if (!emailSent) {
-    try {
-      await emailService.sendCouponEmail({
-        to: player.email,
-        couponCode: coupon.code,
-        rewardName: coupon.reward_type,
-        score: parsed.data.score,
-      });
-      markCouponSent(coupon.id);
-      emailSent = true;
-    } catch (error) {
-      console.error('Coupon email failed', error);
-    }
-  }
 
   res.json({
-    couponCode: coupon.code,
-    rewardName: coupon.reward_type,
-    emailSent,
-    alreadyIssued,
+    rewardName: 'Free Coffee',
+    emailSent: false,
+    alreadyIssued: false,
+    message: 'Game completed. Rewards will be sent after the event ends.',
   });
 });

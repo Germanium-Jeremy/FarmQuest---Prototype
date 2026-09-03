@@ -17,8 +17,10 @@ services:
       - SMTP_PASS=${SMTP_PASS}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:?Set ALLOWED_ORIGINS in .env}
       - ADMIN_TOKEN=${ADMIN_TOKEN:?Set ADMIN_TOKEN in .env}
+      - UPLOAD_DIR=/app/uploads
     volumes:
       - db-data:/app/data
+      - upload-data:/app/uploads
     restart: unless-stopped
     healthcheck:
       test:
@@ -64,4 +66,6 @@ services:
 
 volumes:
   db-data:
+    driver: local
+  upload-data:
     driver: local

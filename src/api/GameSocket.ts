@@ -87,10 +87,6 @@ export class GameSocket {
     this.send({ type: 'join_lobby', playerId, displayName, characterType, mapId });
   }
 
-  playerReady(playerId: string): void {
-    this.send({ type: 'player_ready', playerId });
-  }
-
   gameComplete(playerId: string, score: number, completionTime: number): void {
     this.send({ type: 'game_complete', playerId, score, completionTime });
   }

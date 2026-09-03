@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
-import { CouponRow, EventInstanceRow, InstancePlayerRow, LeaderboardRow, PlayerRow, SessionRow, VendorRow, VendorSessionRow } from '../types/index.js';
+import { CouponRow, CollaboratorRow, EventInstanceRow, InstancePlayerRow, LeaderboardRow, PlayerRow, SessionRow, VendorRow, VendorSessionRow } from '../types/index.js';
 
 const databasePath = resolve(process.env.DATABASE_URL ?? './farmquest.db');
 mkdirSync(dirname(databasePath), { recursive: true });
@@ -18,9 +18,59 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS event_instances (id TEXT PRIMARY KEY, map_id TEXT NOT NULL, status TEXT NOT NULL, created_by TEXT, started_at TEXT, finished_at TEXT, created_at TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS instance_players (id TEXT PRIMARY KEY, instance_id TEXT NOT NULL, player_id TEXT NOT NULL, session_id TEXT NOT NULL, character_type TEXT NOT NULL, map_id TEXT NOT NULL, status TEXT NOT NULL, score INTEGER DEFAULT 0, completion_time REAL, completed_at TEXT, FOREIGN KEY (instance_id) REFERENCES event_instances(id), FOREIGN KEY (player_id) REFERENCES players(id), FOREIGN KEY (session_id) REFERENCES game_sessions(id), UNIQUE(instance_id, player_id));
   CREATE TABLE IF NOT EXISTS leaderboard (id TEXT PRIMARY KEY, instance_id TEXT NOT NULL, player_id TEXT NOT NULL, rank INTEGER NOT NULL, score INTEGER NOT NULL, completion_time REAL, reward_type TEXT, coupon_id TEXT, FOREIGN KEY (instance_id) REFERENCES event_instances(id), FOREIGN KEY (player_id) REFERENCES players(id));
-  CREATE TABLE IF NOT EXISTS vendors (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, location_name TEXT NOT NULL, created_at TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS vendors (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    location_name TEXT NOT NULL,
+    contact_email TEXT NOT NULL DEFAULT '',
+    must_change_password INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS vendor_sessions (id TEXT PRIMARY KEY, vendor_id TEXT NOT NULL, token TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, FOREIGN KEY (vendor_id) REFERENCES vendors(id));
+  CREATE TABLE IF NOT EXISTS collaborators (
+    id TEXT PRIMARY KEY,
+    company_name TEXT NOT NULL,
+    contacts TEXT NOT NULL DEFAULT '',
+    logo_path TEXT,
+    logo_cid TEXT,
+    url TEXT,
+    display_order INTEGER NOT NULL DEFAULT 0,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `);
+
+// Seed default collaborators if table is empty
+const collaboratorCount = db.prepare('SELECT COUNT(*) as cnt FROM collaborators').get() as { cnt: number };
+if (collaboratorCount.cnt === 0) {
+  const now = new Date().toISOString();
+  const seeds: Array<{ company_name: string; contacts: string; url?: string; display_order: number }> = [
+    { company_name: 'FarmQuest', contacts: 'hello@farmquest.app', url: 'https://farmquest.app', display_order: 0 },
+    { company_name: 'Agrisense', contacts: 'info@agrisense.com', url: 'https://agrisense.com', display_order: 1 },
+    { company_name: 'AfricaInColors', contacts: 'contact@africaincolors.com', url: 'https://africaincolors.com', display_order: 2 },
+    { company_name: "Cafe D'amour", contacts: 'hello@cafedamour.com', display_order: 3 },
+  ];
+  const insert = db.prepare('INSERT INTO collaborators (id, company_name, contacts, logo_path, logo_cid, url, display_order, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)');
+  for (const s of seeds) {
+    insert.run(randomUUID(), s.company_name, s.contacts, null, null, s.url ?? null, s.display_order, now, now);
+  }
+}
+
+// Migrate vendors table: add contact_email and must_change_password columns if missing
+try {
+  const vendorCols = db.prepare("PRAGMA table_info(vendors)").all() as Array<{ name: string }>;
+  const colNames = vendorCols.map(c => c.name);
+  if (!colNames.includes('contact_email')) {
+    db.exec("ALTER TABLE vendors ADD COLUMN contact_email TEXT NOT NULL DEFAULT ''");
+  }
+  if (!colNames.includes('must_change_password')) {
+    db.exec("ALTER TABLE vendors ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0");
+  }
+} catch {
+  // Table might not exist yet, migration will happen on next create
+}
 
 export function upsertPlayer(email: string, displayName?: string): PlayerRow {
   const existing = db.prepare('SELECT * FROM players WHERE email = ?').get(email) as PlayerRow | undefined;
@@ -114,6 +164,16 @@ export function getLeaderboard(instanceId: string): LeaderboardRow[] { return db
 
 export function getVendorByUsername(username: string): VendorRow | undefined { return db.prepare('SELECT * FROM vendors WHERE username = ?').get(username) as VendorRow | undefined; }
 
+export function createVendor(vendorId: string, username: string, passwordHash: string, locationName: string, contactEmail: string): VendorRow {
+  const row: VendorRow = { id: vendorId, username, password_hash: passwordHash, location_name: locationName, contact_email: contactEmail, must_change_password: 1, created_at: new Date().toISOString() };
+  db.prepare('INSERT INTO vendors (id, username, password_hash, location_name, contact_email, must_change_password, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(row.id, row.username, row.password_hash, row.location_name, row.contact_email, row.must_change_password, row.created_at);
+  return row;
+}
+
+export function updateVendorPassword(vendorId: string, passwordHash: string): void {
+  db.prepare('UPDATE vendors SET password_hash = ?, must_change_password = 0 WHERE id = ?').run(passwordHash, vendorId);
+}
+
 export function createVendorSession(vendorId: string, token: string, expiresAt: string): VendorSessionRow {
   const row: VendorSessionRow = { id: randomUUID(), vendor_id: vendorId, token, expires_at: expiresAt };
   db.prepare('INSERT INTO vendor_sessions (id, vendor_id, token, expires_at) VALUES (?, ?, ?, ?)').run(row.id, row.vendor_id, row.token, row.expires_at);
@@ -129,3 +189,92 @@ export function getCouponByCode(code: string): CouponRow | undefined {
 }
 
 export function redeemCoupon(couponId: string): void { db.prepare('UPDATE coupons SET status = ?, redeemed_at = ? WHERE id = ?').run('REDEEMED', new Date().toISOString(), couponId); }
+
+// ─── Collaborator CRUD ──────────────────────────────────────────────
+
+export function listCollaborators(): CollaboratorRow[] {
+  return db.prepare('SELECT * FROM collaborators ORDER BY display_order ASC, created_at ASC').all() as unknown as CollaboratorRow[];
+}
+
+export function getActiveCollaborators(): CollaboratorRow[] {
+  return db.prepare('SELECT * FROM collaborators WHERE active = 1 ORDER BY display_order ASC, created_at ASC').all() as unknown as CollaboratorRow[];
+}
+
+export function getCollaborator(id: string): CollaboratorRow | undefined {
+  return db.prepare('SELECT * FROM collaborators WHERE id = ?').get(id) as CollaboratorRow | undefined;
+}
+
+export function createCollaborator(data: { company_name: string; contacts: string; logo_path?: string; logo_cid?: string; url?: string; display_order?: number }): CollaboratorRow {
+  const now = new Date().toISOString();
+  const row: CollaboratorRow = {
+    id: randomUUID(),
+    company_name: data.company_name,
+    contacts: data.contacts,
+    logo_path: data.logo_path ?? null,
+    logo_cid: data.logo_cid ?? null,
+    url: data.url ?? null,
+    display_order: data.display_order ?? 0,
+    active: 1,
+    created_at: now,
+    updated_at: now,
+  };
+  db.prepare('INSERT INTO collaborators (id, company_name, contacts, logo_path, logo_cid, url, display_order, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+    row.id, row.company_name, row.contacts, row.logo_path, row.logo_cid, row.url, row.display_order, row.active, row.created_at, row.updated_at,
+  );
+  return row;
+}
+
+export function updateCollaborator(id: string, data: Partial<{ company_name: string; contacts: string; logo_path: string; logo_cid: string; url: string | null; display_order: number; active: number }>): void {
+  const fields: string[] = [];
+  const params: unknown[] = [];
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) {
+      fields.push(`${key} = ?`);
+      params.push(value);
+    }
+  }
+  if (fields.length === 0) return;
+  fields.push('updated_at = ?');
+  params.push(new Date().toISOString());
+  params.push(id);
+  db.prepare(`UPDATE collaborators SET ${fields.join(', ')} WHERE id = ?`).run(...(params as any[]));
+}
+
+export function deleteCollaborator(id: string): void {
+  db.prepare('DELETE FROM collaborators WHERE id = ?').run(id);
+}
+
+// ─── Vendor admin helpers ───────────────────────────────────────────
+
+export function listVendors(): VendorRow[] {
+  return db.prepare('SELECT * FROM vendors ORDER BY created_at ASC').all() as unknown as VendorRow[];
+}
+
+export function getVendor(id: string): VendorRow | undefined {
+  return db.prepare('SELECT * FROM vendors WHERE id = ?').get(id) as VendorRow | undefined;
+}
+
+export function deleteVendor(id: string): void {
+  db.prepare('DELETE FROM vendor_sessions WHERE vendor_id = ?').run(id);
+  db.prepare('DELETE FROM vendors WHERE id = ?').run(id);
+}
+
+export function updateVendor(id: string, data: Partial<{ username: string; location_name: string; contact_email: string }>): void {
+  const fields: string[] = [];
+  const params: unknown[] = [];
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) {
+      fields.push(`${key} = ?`);
+      params.push(value);
+    }
+  }
+  if (fields.length === 0) return;
+  params.push(id);
+  db.prepare(`UPDATE vendors SET ${fields.join(', ')} WHERE id = ?`).run(...(params as any[]));
+}
+
+// Atomic coupon redemption — returns true only on first successful redeem
+export function atomicRedeemCoupon(couponId: string, status: string): boolean {
+  const result = db.prepare("UPDATE coupons SET status = ?, redeemed_at = ? WHERE id = ? AND status NOT IN ('REDEEMED', 'EXPIRED')").run(status, new Date().toISOString(), couponId);
+  return result.changes > 0;
+}

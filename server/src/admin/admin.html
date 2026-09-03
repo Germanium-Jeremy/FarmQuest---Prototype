@@ -5,380 +5,117 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FarmQuest Admin Dashboard</title>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      body {
-        font-family: "Courier New", monospace;
-        background: #0a0a1a;
-        color: #e0e0e0;
-        min-height: 100vh;
-        overflow: hidden;
-      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: "Courier New", monospace; background: #0a0a1a; color: #e0e0e0; min-height: 100vh; overflow-x: hidden; }
 
       /* ── Login Gate ─────────────────────────────── */
-      #login-section {
-        position: fixed;
-        inset: 0;
-        background: #0a0a1a;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 100;
-      }
-
-      .login-card {
-        background: #12122a;
-        border: 2px solid #333;
-        border-radius: 16px;
-        padding: 48px 40px;
-        width: 440px;
-        text-align: center;
-      }
-
-      .login-card h1 {
-        color: #00ff88;
-        font-size: 42px;
-        margin-bottom: 8px;
-      }
-      .login-card p {
-        color: #888;
-        font-size: 16px;
-        margin-bottom: 28px;
-      }
-      .login-card input {
-        width: 100%;
-        padding: 16px;
-        border-radius: 10px;
-        border: 1px solid #444;
-        background: #0d0d1a;
-        color: white;
-        font-size: 20px;
-        margin-bottom: 18px;
-        text-align: center;
-        font-family: "Courier New", monospace;
-      }
-      .login-card input:focus {
-        outline: none;
-        border-color: #00ff88;
-      }
-      .login-card input::placeholder {
-        color: #555;
-      }
-      .login-card button {
-        width: 100%;
-        padding: 16px;
-        border: none;
-        border-radius: 10px;
-        background: #00ff88;
-        color: #0a0a1a;
-        font-size: 22px;
-        font-weight: bold;
-        cursor: pointer;
-        font-family: "Courier New", monospace;
-        transition: background 0.2s;
-      }
-      .login-card button:hover {
-        background: #00cc6a;
-      }
-      #auth-error {
-        color: #ff4444;
-        font-size: 14px;
-        margin-bottom: 12px;
-        min-height: 20px;
-      }
+      #login-section { position: fixed; inset: 0; background: #0a0a1a; display: flex; justify-content: center; align-items: center; z-index: 100; }
+      .login-card { background: #12122a; border: 2px solid #333; border-radius: 16px; padding: 48px 40px; width: 440px; text-align: center; }
+      .login-card h1 { color: #00ff88; font-size: 42px; margin-bottom: 8px; }
+      .login-card p { color: #888; font-size: 16px; margin-bottom: 28px; }
+      .login-card input { width: 100%; padding: 16px; border-radius: 10px; border: 1px solid #444; background: #0d0d1a; color: white; font-size: 20px; margin-bottom: 18px; text-align: center; font-family: "Courier New", monospace; }
+      .login-card input:focus { outline: none; border-color: #00ff88; }
+      .login-card input::placeholder { color: #555; }
+      .login-card button { width: 100%; padding: 16px; border: none; border-radius: 10px; background: #00ff88; color: #0a0a1a; font-size: 22px; font-weight: bold; cursor: pointer; font-family: "Courier New", monospace; transition: background 0.2s; }
+      .login-card button:hover { background: #00cc6a; }
+      #auth-error { color: #ff4444; font-size: 14px; margin-bottom: 12px; min-height: 20px; }
 
       /* ── Dashboard ──────────────────────────────── */
-      #dashboard {
-        display: none;
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto 1fr auto auto;
-        height: 100vh;
-        gap: 16px;
-        padding: 24px;
-      }
+      #dashboard { display: none; height: 100vh; overflow-y: auto; padding: 24px; }
+      .header { text-align: center; padding: 12px 0; display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; }
+      .header h1 { color: #00ff88; font-size: 42px; }
+      .header p { color: #888; font-size: 18px; }
 
-      .header {
-        grid-column: 1 / -1;
-        text-align: center;
-        padding: 12px 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 24px;
-      }
-      .header h1 {
-        color: #00ff88;
-        font-size: 52px;
-      }
-      .header p {
-        color: #888;
-        font-size: 20px;
-      }
+      .status-pill { display: inline-block; padding: 8px 20px; border-radius: 20px; font-size: 18px; font-weight: bold; letter-spacing: 2px; }
+      .status-pill.waiting { background: #333; color: #aaa; }
+      .status-pill.in-play { background: #003322; color: #00ff88; border: 1px solid #00ff88; }
+      .status-pill.finished { background: #332200; color: #ffe36d; border: 1px solid #ffe36d; }
 
-      .status-pill {
-        display: inline-block;
-        padding: 8px 20px;
-        border-radius: 20px;
-        font-size: 20px;
-        font-weight: bold;
-        letter-spacing: 2px;
-      }
-      .status-pill.waiting {
-        background: #333;
-        color: #aaa;
-      }
-      .status-pill.in-play {
-        background: #003322;
-        color: #00ff88;
-        border: 1px solid #00ff88;
-      }
-      .status-pill.finished {
-        background: #332200;
-        color: #ffe36d;
-        border: 1px solid #ffe36d;
-      }
+      .tabs { display: flex; gap: 8px; margin: 16px 0; justify-content: center; flex-wrap: wrap; }
+      .tab { padding: 10px 20px; border-radius: 8px; background: #1a1a2e; border: 1px solid #333; color: #888; cursor: pointer; font-family: "Courier New", monospace; font-size: 16px; }
+      .tab.active { border-color: #00ff88; color: #00ff88; background: #1a2e1a; }
+      .tab:hover { border-color: #555; }
 
-      /* ── Panels ─────────────────────────────────── */
-      .panel {
-        background: #12122a;
-        border: 1px solid #333;
-        border-radius: 12px;
-        padding: 20px;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-      }
-      .panel h2 {
-        color: #00ff88;
-        font-size: 26px;
-        margin-bottom: 12px;
-      }
+      .tab-content { display: none; }
+      .tab-content.active { display: block; }
 
-      .player-list {
-        flex: 1;
-        overflow-y: auto;
-      }
-      .player-list::-webkit-scrollbar {
-        width: 6px;
-      }
-      .player-list::-webkit-scrollbar-thumb {
-        background: #333;
-        border-radius: 3px;
-      }
+      .panel { background: #12122a; border: 1px solid #333; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+      .panel h2 { color: #00ff88; font-size: 22px; margin-bottom: 12px; }
+      .panel-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-      .empty-msg {
-        color: #555;
-        text-align: center;
-        padding: 40px;
-        font-size: 18px;
-      }
+      .player-list { max-height: 300px; overflow-y: auto; }
+      .empty-msg { color: #555; text-align: center; padding: 20px; font-size: 16px; }
+      .player-entry { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 1px solid #1a1a2e; font-size: 18px; animation: fadeSlideIn 0.3s ease; }
+      @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+      .player-entry .icon { font-size: 24px; }
+      .player-entry .name { flex: 1; color: #fff; font-weight: bold; }
+      .player-entry .map { color: #888; font-size: 14px; }
 
-      .player-entry {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 10px 12px;
-        border-bottom: 1px solid #1a1a2e;
-        font-size: 22px;
-        animation: fadeSlideIn 0.3s ease;
-      }
-      @keyframes fadeSlideIn {
-        from {
-          opacity: 0;
-          transform: translateY(-8px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      .player-entry .icon {
-        font-size: 28px;
-      }
-      .player-entry .name {
-        flex: 1;
-        color: #fff;
-        font-weight: bold;
-      }
-      .player-entry .map {
-        color: #888;
-        font-size: 16px;
-      }
+      .leaderboard-entry { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid #1a1a2e; font-size: 20px; animation: fadeSlideIn 0.3s ease; }
+      .leaderboard-entry .rank { color: #00ff88; font-weight: bold; min-width: 50px; }
+      .leaderboard-entry .name { flex: 1; color: #fff; }
+      .leaderboard-entry .score { color: #ffe36d; font-weight: bold; white-space: nowrap; }
+      .leaderboard-entry.top3 .rank { color: #ffd700; font-size: 24px; }
 
-      .leaderboard-entry {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px;
-        border-bottom: 1px solid #1a1a2e;
-        font-size: 24px;
-        animation: fadeSlideIn 0.3s ease;
-      }
-      .leaderboard-entry .rank {
-        color: #00ff88;
-        font-weight: bold;
-        min-width: 60px;
-      }
-      .leaderboard-entry .name {
-        flex: 1;
-        color: #fff;
-      }
-      .leaderboard-entry .score {
-        color: #ffe36d;
-        font-weight: bold;
-        white-space: nowrap;
-      }
-      .leaderboard-entry.top3 .rank {
-        color: #ffd700;
-        font-size: 28px;
-      }
-
-      .panel-footer {
-        margin-top: 12px;
-        padding-top: 10px;
-        border-top: 1px solid #222;
-        color: #888;
-        font-size: 18px;
-        text-align: center;
-      }
-      .panel-footer .highlight {
-        color: #00ff88;
-        font-weight: bold;
-      }
+      .panel-footer { margin-top: 12px; padding-top: 10px; border-top: 1px solid #222; color: #888; font-size: 16px; text-align: center; }
+      .panel-footer .highlight { color: #00ff88; font-weight: bold; }
 
       /* ── Controls ───────────────────────────────── */
-      .controls {
-        grid-column: 1 / -1;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 20px;
-        padding: 12px 0;
-      }
+      .controls { display: flex; justify-content: center; align-items: center; gap: 20px; padding: 12px 0; flex-wrap: wrap; }
+      .controls button { padding: 14px 36px; font-size: 22px; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; font-family: "Courier New", monospace; transition: all 0.2s; }
+      #end-btn { background: #ff4444; color: white; }
+      #end-btn:hover:not(:disabled) { background: #cc2222; transform: scale(1.03); }
+      #end-btn:disabled { background: #222; color: #555; cursor: not-allowed; transform: none; }
 
-      .map-select select {
-        padding: 14px 20px;
-        font-size: 22px;
-        background: #1a1a2e;
-        color: white;
-        border: 1px solid #444;
-        border-radius: 10px;
-        font-family: "Courier New", monospace;
-        cursor: pointer;
-      }
-      .map-select select:focus {
-        outline: none;
-        border-color: #00ff88;
-      }
+      .status-bar { text-align: center; font-size: 18px; color: #888; padding: 8px 0; display: flex; justify-content: center; gap: 32px; flex-wrap: wrap; }
+      .status-bar .val { color: #00ff88; font-weight: bold; }
 
-      .controls button {
-        padding: 16px 44px;
-        font-size: 28px;
-        font-weight: bold;
-        border: none;
-        border-radius: 12px;
-        cursor: pointer;
-        font-family: "Courier New", monospace;
-        transition: all 0.2s;
-      }
-      #start-btn {
-        background: #00ff88;
-        color: #0a0a1a;
-      }
-      #start-btn:hover:not(:disabled) {
-        background: #00cc6a;
-        transform: scale(1.03);
-      }
-      #end-btn {
-        background: #ff4444;
-        color: white;
-      }
-      #end-btn:hover:not(:disabled) {
-        background: #cc2222;
-        transform: scale(1.03);
-      }
-      #start-btn:disabled,
-      #end-btn:disabled {
-        background: #222;
-        color: #555;
-        cursor: not-allowed;
-        transform: none;
-      }
+      .conn-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+      .conn-dot.connected { background: #00ff88; box-shadow: 0 0 6px #00ff88; }
+      .conn-dot.disconnected { background: #ff4444; box-shadow: 0 0 6px #ff4444; }
+      .conn-dot.connecting { background: #ffe36d; animation: pulse 1s infinite; }
+      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-      /* ── Status Bar ─────────────────────────────── */
-      .status-bar {
-        grid-column: 1 / -1;
-        text-align: center;
-        font-size: 20px;
-        color: #888;
-        padding: 8px 0;
-        display: flex;
-        justify-content: center;
-        gap: 32px;
-      }
-      .status-bar .val {
-        color: #00ff88;
-        font-weight: bold;
-      }
-      .status-bar .count {
-        color: #ffe36d;
-        font-weight: bold;
-      }
+      /* ── Congratulation Animation ───────────────── */
+      #confetti-container { position: fixed; inset: 0; pointer-events: none; z-index: 99; overflow: hidden; }
+      .confetti-piece { position: absolute; width: 10px; height: 10px; opacity: 0; }
+      @keyframes confetti-fall { 0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) { .confetti-piece { animation: none !important; display: none; } }
 
-      /* ── Connection indicator ────────────────────── */
-      .conn-dot {
-        display: inline-block;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        margin-right: 8px;
-        vertical-align: middle;
-      }
-      .conn-dot.connected {
-        background: #00ff88;
-        box-shadow: 0 0 6px #00ff88;
-      }
-      .conn-dot.disconnected {
-        background: #ff4444;
-        box-shadow: 0 0 6px #ff4444;
-      }
-      .conn-dot.connecting {
-        background: #ffe36d;
-        animation: pulse 1s infinite;
-      }
-      @keyframes pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.4;
-        }
-      }
+      /* ── Form Elements ──────────────────────────── */
+      .form-group { margin-bottom: 12px; }
+      .form-group label { display: block; font-size: 14px; color: #888; margin-bottom: 4px; }
+      .form-group input, .form-group select { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #444; background: #0d0d1a; color: white; font-size: 14px; font-family: "Courier New", monospace; }
+      .form-group input:focus, .form-group select:focus { outline: none; border-color: #00ff88; }
+      .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; font-family: "Courier New", monospace; }
+      .btn-primary { background: #00ff88; color: #0a0a1a; }
+      .btn-danger { background: #ff4444; color: white; }
+      .btn-secondary { background: #333; color: #aaa; }
+      .btn:hover { opacity: 0.85; }
+      .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+      .error-msg { color: #ff4444; font-size: 13px; margin-top: 4px; }
+      .success-msg { color: #00ff88; font-size: 13px; margin-top: 4px; }
+      table { width: 100%; border-collapse: collapse; }
+      th { text-align: left; color: #888; font-size: 13px; padding: 8px; border-bottom: 1px solid #333; }
+      td { padding: 8px; border-bottom: 1px solid #1a1a2e; font-size: 14px; }
+      .collab-logo { width: 40px; height: 40px; border-radius: 6px; object-fit: contain; background: #1a1a2e; }
     </style>
   </head>
   <body>
-    <!-- ── Login Gate ──────────────────────────── -->
+    <div id="confetti-container"></div>
+
+    <!-- Login Gate -->
     <div id="login-section">
       <div class="login-card">
         <h1>🌾 FarmQuest</h1>
         <p>Admin Dashboard — Enter token to continue</p>
-        <input
-          id="admin-token"
-          type="password"
-          placeholder="Admin token"
-          autofocus
-        />
+        <input id="admin-token" type="password" placeholder="Admin token" autofocus />
         <div id="auth-error"></div>
         <button id="login-btn">Open Dashboard</button>
       </div>
     </div>
 
-    <!-- ── Dashboard ───────────────────────────── -->
+    <!-- Dashboard -->
     <div id="dashboard">
       <div class="header">
         <h1>🌾 FARMQUEST</h1>
@@ -386,45 +123,84 @@
         <div id="status-pill" class="status-pill waiting">WAITING</div>
       </div>
 
-      <div class="panel">
-        <h2>👥 Entering Players</h2>
-        <div class="player-list" id="player-list">
-          <div class="empty-msg">No players yet…</div>
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('game')">🎮 Game</div>
+        <div class="tab" onclick="switchTab('collaborators')">🤝 Collaborators</div>
+        <div class="tab" onclick="switchTab('vendors')">🏪 Vendors</div>
+      </div>
+
+      <!-- Game Tab -->
+      <div id="tab-game" class="tab-content active">
+        <div class="panel-row">
+          <div class="panel">
+            <h2>👥 Entering Players</h2>
+            <div class="player-list" id="player-list"><div class="empty-msg">No players yet…</div></div>
+            <div class="panel-footer">Total: <span class="highlight" id="player-count">0</span> players</div>
+          </div>
+          <div class="panel">
+            <h2>🏆 Leaderboard</h2>
+            <div class="player-list" id="leaderboard"><div class="empty-msg">No results yet…</div></div>
+            <div class="panel-footer">Time: <span class="highlight" id="elapsed-time">00:00</span></div>
+          </div>
         </div>
-        <div class="panel-footer">
-          Total: <span class="highlight" id="player-count">0</span> players
+        <div class="controls">
+          <button id="end-btn" disabled>⏹️ END GAME</button>
+        </div>
+        <div class="status-bar">
+          <span><span class="conn-dot connecting" id="conn-dot"></span> WebSocket: <span class="val" id="conn-label">Connecting…</span></span>
+          <span>Status: <span class="val" id="status-label">WAITING</span></span>
         </div>
       </div>
 
-      <div class="panel">
-        <h2>🏆 Leaderboard</h2>
-        <div class="player-list" id="leaderboard">
-          <div class="empty-msg">No results yet…</div>
-        </div>
-        <div class="panel-footer">
-          Time: <span class="highlight" id="elapsed-time">00:00</span>
+      <!-- Collaborators Tab -->
+      <div id="tab-collaborators" class="tab-content">
+        <div class="panel">
+          <h2>🤝 Brand Collaborators</h2>
+          <div id="collab-message"></div>
+          <div id="collab-form-container" style="display:none;margin-bottom:16px;">
+            <div class="form-group"><label>Company Name *</label><input id="collab-name" type="text" maxlength="100" /></div>
+            <div class="form-group"><label>Contacts *</label><input id="collab-contacts" type="text" maxlength="500" placeholder="email, phone, etc." /></div>
+            <div class="form-group"><label>Website URL (optional)</label><input id="collab-url" type="url" maxlength="500" /></div>
+            <div class="form-group"><label>Logo (PNG/JPEG/GIF/SVG/WebP, max 5MB)</label><input id="collab-logo" type="file" accept="image/*" /></div>
+            <div class="form-group"><label>Display Order</label><input id="collab-order" type="number" value="0" min="0" max="999" style="width:100px;" /></div>
+            <input type="hidden" id="collab-edit-id" />
+            <button class="btn btn-primary" id="collab-save-btn" onclick="saveCollaborator()">Save</button>
+            <button class="btn btn-secondary" onclick="cancelCollabEdit()">Cancel</button>
+          </div>
+          <button class="btn btn-primary" id="collab-add-btn" onclick="showCollabForm()">+ Add Collaborator</button>
+          <div style="margin-top:16px;">
+            <table id="collab-table">
+              <thead><tr><th>Logo</th><th>Company</th><th>Contacts</th><th>URL</th><th>Order</th><th>Active</th><th>Actions</th></tr></thead>
+              <tbody id="collab-tbody"></tbody>
+            </table>
+            <div id="collab-empty" class="empty-msg">No collaborators.</div>
+          </div>
         </div>
       </div>
 
-      <div class="controls">
-        <div class="map-select">
-          <select id="map-select">
-            <option value="rwanda">🌧️ Rwanda — Wet Land</option>
-            <option value="sudan">🏜️ Sudan — Desert</option>
-            <option value="seychelles">🌊 Seychelles — Water Land</option>
-          </select>
+      <!-- Vendors Tab -->
+      <div id="tab-vendors" class="tab-content">
+        <div class="panel">
+          <h2>🏪 Vendor Accounts</h2>
+          <div id="vendor-message"></div>
+          <div id="vendor-form-container" style="display:none;margin-bottom:16px;">
+            <div class="form-group"><label>Username *</label><input id="vendor-username" type="text" maxlength="50" /></div>
+            <div class="form-group"><label>Location Name *</label><input id="vendor-location" type="text" maxlength="100" /></div>
+            <div class="form-group"><label>Contact Email *</label><input id="vendor-email" type="email" /></div>
+            <div class="form-group"><label>Password (min 6 chars, optional — defaults to FarmQuest2024!)</label><input id="vendor-password" type="password" minlength="6" /></div>
+            <input type="hidden" id="vendor-edit-id" />
+            <button class="btn btn-primary" id="vendor-save-btn" onclick="saveVendor()">Save</button>
+            <button class="btn btn-secondary" onclick="cancelVendorEdit()">Cancel</button>
+          </div>
+          <button class="btn btn-primary" id="vendor-add-btn" onclick="showVendorForm()">+ Add Vendor</button>
+          <div style="margin-top:16px;">
+            <table id="vendor-table">
+              <thead><tr><th>Username</th><th>Location</th><th>Contact</th><th>Created</th><th>Actions</th></tr></thead>
+              <tbody id="vendor-tbody"></tbody>
+            </table>
+            <div id="vendor-empty" class="empty-msg">No vendors.</div>
+          </div>
         </div>
-        <button id="start-btn">🎮 START GAME</button>
-        <button id="end-btn" disabled>⏹️ END GAME</button>
-      </div>
-
-      <div class="status-bar">
-        <span
-          ><span class="conn-dot connecting" id="conn-dot"></span> WebSocket:
-          <span class="val" id="conn-label">Connecting…</span></span
-        >
-        <span>Map: <span class="val" id="map-label">—</span></span>
-        <span>Status: <span class="val" id="status-label">WAITING</span></span>
       </div>
     </div>
 
@@ -436,6 +212,7 @@
       let gameStatus = "WAITING";
       let gameStartTime = null;
       let timerInterval = null;
+      let confettiPlayed = false;
 
       /* ── DOM refs ──────────────────────────── */
       const $ = (id) => document.getElementById(id);
@@ -444,35 +221,38 @@
       const tokenInput = $("admin-token");
       const authError = $("auth-error");
       const loginBtn = $("login-btn");
-      const startBtn = $("start-btn");
       const endBtn = $("end-btn");
-      const mapSelect = $("map-select");
       const statusPill = $("status-pill");
       const playerListEl = $("player-list");
       const leaderboardEl = $("leaderboard");
       const playerCountEl = $("player-count");
       const elapsedEl = $("elapsed-time");
-      const mapLabelEl = $("map-label");
       const statusLabelEl = $("status-label");
       const connDot = $("conn-dot");
       const connLabel = $("conn-label");
 
       /* ── Login ─────────────────────────────── */
       loginBtn.addEventListener("click", doLogin);
-      tokenInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") doLogin();
-      });
+      tokenInput.addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
 
       function doLogin() {
         adminToken = tokenInput.value.trim();
-        if (!adminToken) {
-          authError.textContent = "Please enter a token.";
-          return;
-        }
+        if (!adminToken) { authError.textContent = "Please enter a token."; return; }
         authError.textContent = "";
         loginSection.style.display = "none";
-        dashboard.style.display = "grid";
+        dashboard.style.display = "block";
         connectWS();
+        loadCollaborators();
+        loadVendors();
+      }
+
+      /* ── Tabs ──────────────────────────────── */
+      function switchTab(name) {
+        document.querySelectorAll(".tab").forEach((t, i) => {
+          t.classList.toggle("active", ["game", "collaborators", "vendors"][i] === name);
+        });
+        document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+        $("tab-" + name).classList.add("active");
       }
 
       /* ── WebSocket ─────────────────────────── */
@@ -480,44 +260,18 @@
         setConnectionStatus("connecting");
         const protocol = location.protocol === "https:" ? "wss:" : "ws:";
         const params = new URLSearchParams({ admin: "true", adminToken });
-        ws = new WebSocket(
-          protocol + "//" + location.host + "/ws?" + params.toString(),
-        );
-
-        ws.onopen = () => {
-          setConnectionStatus("connected");
-          console.log("[Admin] WebSocket connected");
-        };
-
+        ws = new WebSocket(protocol + "//" + location.host + "/ws?" + params.toString());
+        ws.onopen = () => { setConnectionStatus("connected"); };
         ws.onmessage = (event) => {
-          try {
-            const msg = JSON.parse(event.data);
-            handleMessage(msg);
-          } catch (e) {
-            console.error("[Admin] Failed to parse message:", e);
-          }
+          try { handleMessage(JSON.parse(event.data)); } catch (e) { console.error("[Admin] Parse error:", e); }
         };
-
-        ws.onclose = (event) => {
-          setConnectionStatus("disconnected");
-          console.log("[Admin] WebSocket closed:", event.code, event.reason);
-          // Auto-reconnect after 3 seconds
-          setTimeout(connectWS, 3000);
-        };
-
-        ws.onerror = () => {
-          setConnectionStatus("disconnected");
-        };
+        ws.onclose = () => { setConnectionStatus("disconnected"); setTimeout(connectWS, 3000); };
+        ws.onerror = () => { setConnectionStatus("disconnected"); };
       }
 
       function setConnectionStatus(state) {
         connDot.className = "conn-dot " + state;
-        const labels = {
-          connected: "Connected",
-          disconnected: "Disconnected",
-          connecting: "Connecting…",
-        };
-        connLabel.textContent = labels[state] || state;
+        connLabel.textContent = { connected: "Connected", disconnected: "Disconnected", connecting: "Connecting…" }[state] || state;
       }
 
       /* ── Message Handler ────────────────────── */
@@ -528,207 +282,242 @@
             playerCountEl.textContent = msg.count || 0;
             renderPlayers();
             break;
-
-          case "player_joined":
-            // lobby_update handles the full list; this is just for log
-            console.log("[Admin] Player joined:", msg.displayName);
-            break;
-
-          case "player_left":
-            console.log("[Admin] Player left:", msg.displayName);
-            break;
-
           case "game_started":
             gameStatus = "IN_PLAY";
             gameStartTime = Date.now();
+            confettiPlayed = false;
             updateStatusUI();
-            startBtn.disabled = true;
             endBtn.disabled = false;
             startTimer();
-            console.log("[Admin] Game started, instance:", msg.instanceId);
             break;
-
           case "leaderboard_update":
             renderLeaderboard(msg.entries || []);
             break;
-
           case "game_finished":
             gameStatus = "FINISHED";
             gameStartTime = null;
             updateStatusUI();
-            startBtn.disabled = false;
             endBtn.disabled = true;
             stopTimer();
             renderLeaderboard(msg.leaderboard || []);
-            console.log("[Admin] Game finished");
+            if (!confettiPlayed) { playConfetti(); confettiPlayed = true; }
             break;
-
           case "error":
-            authError.textContent =
-              msg.message || "The server rejected the request.";
-            console.error("[Admin] Server error:", msg.message);
-            if (gameStatus === "WAITING") startBtn.disabled = false;
+            console.error("[Admin] Error:", msg.message);
             break;
-
-          default:
-            console.log("[Admin] Unknown message type:", msg.type);
         }
       }
 
       /* ── Timer ──────────────────────────────── */
-      function startTimer() {
-        stopTimer();
-        timerInterval = setInterval(updateElapsed, 1000);
-      }
-
-      function stopTimer() {
-        if (timerInterval) {
-          clearInterval(timerInterval);
-          timerInterval = null;
-        }
-        elapsedEl.textContent = "00:00";
-      }
-
+      function startTimer() { stopTimer(); timerInterval = setInterval(updateElapsed, 1000); }
+      function stopTimer() { if (timerInterval) { clearInterval(timerInterval); timerInterval = null; } elapsedEl.textContent = "00:00"; }
       function updateElapsed() {
         if (!gameStartTime) return;
         const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
-        const min = Math.floor(elapsed / 60);
-        const sec = elapsed % 60;
-        elapsedEl.textContent =
-          String(min).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
+        elapsedEl.textContent = String(Math.floor(elapsed / 60)).padStart(2, "0") + ":" + String(elapsed % 60).padStart(2, "0");
       }
 
       /* ── UI Updates ─────────────────────────── */
       function updateStatusUI() {
-        const labels = {
-          WAITING: "WAITING",
-          IN_PLAY: "IN PLAY",
-          FINISHED: "FINISHED",
-        };
+        const labels = { WAITING: "WAITING", IN_PLAY: "IN PLAY", FINISHED: "FINISHED" };
         statusLabelEl.textContent = labels[gameStatus] || gameStatus;
         statusPill.textContent = labels[gameStatus] || gameStatus;
-        statusPill.className =
-          "status-pill " + gameStatus.toLowerCase().replace("_", "-");
-        mapLabelEl.textContent =
-          mapSelect.options[mapSelect.selectedIndex].text;
+        statusPill.className = "status-pill " + gameStatus.toLowerCase().replace("_", "-");
       }
 
       function renderPlayers() {
-        if (!players.length) {
-          playerListEl.innerHTML =
-            '<div class="empty-msg">No players yet…</div>';
-          return;
-        }
-        const charIcons = { male: "👨", female: "👩", robot: "🤖" };
-        const mapIcons = { rwanda: "🌧️", sudan: "🏜️", seychelles: "🌊" };
-        playerListEl.innerHTML = players
-          .map(
-            (p) =>
-              '<div class="player-entry">' +
-              '<span class="icon">' +
-              (charIcons[p.characterType] || "👤") +
-              "</span>" +
-              '<span class="name">' +
-              escapeHtml(p.displayName) +
-              "</span>" +
-              '<span class="map">' +
-              (mapIcons[p.mapId] || "") +
-              " " +
-              escapeHtml(p.mapId) +
-              "</span>" +
-              "</div>",
-          )
-          .join("");
-        // Auto-scroll to bottom
+        if (!players.length) { playerListEl.innerHTML = '<div class="empty-msg">No players yet…</div>'; return; }
+        const ci = { male: "👨", female: "👩", robot: "🤖" };
+        const mi = { rwanda: "🌧️", sudan: "🏜️", seychelles: "🌊" };
+        playerListEl.innerHTML = players.map((p) =>
+          '<div class="player-entry"><span class="icon">' + (ci[p.characterType] || "👤") + '</span><span class="name">' + escapeHtml(p.displayName) + '</span><span class="map">' + (mi[p.mapId] || "") + " " + escapeHtml(p.mapId) + '</span></div>'
+        ).join("");
         playerListEl.scrollTop = playerListEl.scrollHeight;
       }
 
       function renderLeaderboard(entries) {
-        if (!entries.length) {
-          leaderboardEl.innerHTML =
-            '<div class="empty-msg">No results yet…</div>';
-          return;
-        }
+        if (!entries.length) { leaderboardEl.innerHTML = '<div class="empty-msg">No results yet…</div>'; return; }
         const medals = { 1: "🥇", 2: "🥈", 3: "🥉" };
-        leaderboardEl.innerHTML = entries
-          .slice(0, 10)
-          .map((e) => {
-            const medal = medals[e.rank] || "";
-            const time = formatTime(e.completionTime);
-            const reward = e.rewardType ? " — " + escapeHtml(e.rewardType) : "";
-            return (
-              '<div class="leaderboard-entry' +
-              (e.rank <= 3 ? " top3" : "") +
-              '">' +
-              '<span class="rank">' +
-              medal +
-              " " +
-              e.rank +
-              ".</span>" +
-              '<span class="name">' +
-              escapeHtml(e.displayName) +
-              "</span>" +
-              '<span class="score">' +
-              e.score +
-              " pts (" +
-              time +
-              ")" +
-              reward +
-              "</span>" +
-              "</div>"
-            );
-          })
-          .join("");
+        leaderboardEl.innerHTML = entries.slice(0, 10).map((e) => {
+          const time = formatTime(e.completionTime);
+          const reward = e.rewardType ? " — " + escapeHtml(e.rewardType) : "";
+          return '<div class="leaderboard-entry' + (e.rank <= 3 ? " top3" : "") + '"><span class="rank">' + (medals[e.rank] || "") + " " + e.rank + '.</span><span class="name">' + escapeHtml(e.displayName) + '</span><span class="score">' + e.score + " pts (" + time + ")" + reward + "</span></div>";
+        }).join("");
       }
 
-      function formatTime(seconds) {
-        if (!seconds && seconds !== 0) return "--:--";
-        const m = Math.floor(seconds / 60);
-        const s = Math.floor(seconds % 60);
-        return m + ":" + String(s).padStart(2, "0");
-      }
+      function formatTime(s) { if (!s && s !== 0) return "--:--"; return Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0"); }
+      function escapeHtml(str) { const d = document.createElement("div"); d.textContent = str; return d.innerHTML; }
 
-      function escapeHtml(str) {
-        const div = document.createElement("div");
-        div.textContent = str;
-        return div.innerHTML;
-      }
-
-      /* ── Controls ───────────────────────────── */
-      startBtn.addEventListener("click", startGame);
-      endBtn.addEventListener("click", endGame);
-
-      function startGame() {
-        const mapId = mapSelect.value;
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(
-            JSON.stringify({
-              type: "admin_start_game",
-              mapId: mapId,
-              adminToken: adminToken,
-            }),
-          );
-          console.log("[Admin] Sent start game for map:", mapId);
-        } else {
-          alert("WebSocket not connected. Please wait for reconnection.");
+      /* ── Confetti Animation ─────────────────── */
+      function playConfetti() {
+        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (prefersReduced) return;
+        const container = $("confetti-container");
+        const colors = ["#00ff88", "#ffe36d", "#ff4444", "#00aaff", "#ff88ff", "#ffd700"];
+        for (let i = 0; i < 60; i++) {
+          const piece = document.createElement("div");
+          piece.className = "confetti-piece";
+          piece.style.left = Math.random() * 100 + "vw";
+          piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+          piece.style.animation = "confetti-fall " + (2 + Math.random() * 2) + "s ease-in " + Math.random() * 0.5 + "s forwards";
+          piece.style.width = (6 + Math.random() * 8) + "px";
+          piece.style.height = (6 + Math.random() * 8) + "px";
+          piece.style.borderRadius = Math.random() > 0.5 ? "50%" : "2px";
+          container.appendChild(piece);
         }
+        setTimeout(() => { container.innerHTML = ""; }, 5000);
       }
 
-      function endGame() {
+      /* ── End Game ───────────────────────────── */
+      endBtn.addEventListener("click", () => {
         if (!confirm("End the current game?")) return;
         if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(
-            JSON.stringify({
-              type: "admin_end_game",
-              adminToken: adminToken,
-            }),
-          );
-          console.log("[Admin] Sent end game");
+          ws.send(JSON.stringify({ type: "admin_end_game", adminToken }));
+        }
+      });
+
+      /* ── Collaborators ──────────────────────── */
+      async function apiFetch(path, options = {}) {
+        const res = await fetch("/api/admin" + path, {
+          ...options,
+          headers: { Authorization: "Bearer " + adminToken, ...options.headers },
+        });
+        return res.json();
+      }
+
+      async function loadCollaborators() {
+        try {
+          const data = await apiFetch("/collaborators");
+          renderCollaborators(data.collaborators || []);
+        } catch (e) { console.error("Failed to load collaborators", e); }
+      }
+
+      function renderCollaborators(collabs) {
+        const tbody = $("collab-tbody");
+        const empty = $("collab-empty");
+        if (!collabs.length) { tbody.innerHTML = ""; empty.style.display = "block"; return; }
+        empty.style.display = "none";
+        tbody.innerHTML = collabs.map((c) => {
+          const logo = c.logo_path ? '<img class="collab-logo" src="/uploads/' + escapeHtml(c.logo_path) + '" alt="logo" />' : '<span style="color:#555;">No logo</span>';
+          const url = c.url ? '<a href="' + escapeHtml(c.url) + '" target="_blank" style="color:#00ff88;">' + escapeHtml(c.url) + '</a>' : "—";
+          return "<tr><td>" + logo + "</td><td>" + escapeHtml(c.company_name) + "</td><td>" + escapeHtml(c.contacts) + "</td><td>" + url + "</td><td>" + c.display_order + "</td><td>" + (c.active ? "✅" : "❌") + "</td><td><button class=\"btn btn-secondary\" onclick=\"editCollaborator('" + c.id + "')\">Edit</button> <button class=\"btn btn-danger\" onclick=\"deleteCollaborator('" + c.id + "')\">Delete</button></td></tr>";
+        }).join("");
+      }
+
+      function showCollabForm(collab) {
+        $("collab-form-container").style.display = "block";
+        $("collab-add-btn").style.display = "none";
+        $("collab-name").value = collab ? collab.company_name : "";
+        $("collab-contacts").value = collab ? collab.contacts : "";
+        $("collab-url").value = (collab && collab.url) ? collab.url : "";
+        $("collab-order").value = collab ? collab.display_order : 0;
+        $("collab-edit-id").value = collab ? collab.id : "";
+        $("collab-logo").value = "";
+      }
+
+      function cancelCollabEdit() { $("collab-form-container").style.display = "none"; $("collab-add-btn").style.display = "inline-block"; }
+
+      async function editCollaborator(id) {
+        const data = await apiFetch("/collaborators");
+        const c = (data.collaborators || []).find((x) => x.id === id);
+        if (c) showCollabForm(c);
+      }
+
+      async function saveCollaborator() {
+        const editId = $("collab-edit-id").value;
+        const formData = new FormData();
+        formData.append("company_name", $("collab-name").value);
+        formData.append("contacts", $("collab-contacts").value);
+        if ($("collab-url").value) formData.append("url", $("collab-url").value);
+        formData.append("display_order", $("collab-order").value);
+        const file = $("collab-logo").files[0];
+        if (file) formData.append("logo", file);
+
+        try {
+          if (editId) {
+            await apiFetch("/collaborators/" + editId, { method: "PUT", body: formData });
+          } else {
+            if (!file) { alert("Logo is required for new collaborators."); return; }
+            await apiFetch("/collaborators", { method: "POST", body: formData });
+          }
+          cancelCollabEdit();
+          loadCollaborators();
+          $("collab-message").innerHTML = '<div class="success-msg">Saved successfully.</div>';
+          setTimeout(() => { $("collab-message").innerHTML = ""; }, 3000);
+        } catch (e) {
+          $("collab-message").innerHTML = '<div class="error-msg">Failed to save: ' + e.message + '</div>';
         }
       }
 
-      // Update map label when selection changes
-      mapSelect.addEventListener("change", updateStatusUI);
+      async function deleteCollaborator(id) {
+        if (!confirm("Delete this collaborator?")) return;
+        try {
+          await apiFetch("/collaborators/" + id, { method: "DELETE" });
+          loadCollaborators();
+        } catch (e) { alert("Failed to delete."); }
+      }
+
+      /* ── Vendors ────────────────────────────── */
+      async function loadVendors() {
+        try {
+          const data = await apiFetch("/vendors");
+          renderVendors(data.vendors || []);
+        } catch (e) { console.error("Failed to load vendors", e); }
+      }
+
+      function renderVendors(vendors) {
+        const tbody = $("vendor-tbody");
+        const empty = $("vendor-empty");
+        if (!vendors.length) { tbody.innerHTML = ""; empty.style.display = "block"; return; }
+        empty.style.display = "none";
+        tbody.innerHTML = vendors.map((v) => {
+          const created = new Date(v.created_at).toLocaleDateString();
+          return "<tr><td>" + escapeHtml(v.username) + "</td><td>" + escapeHtml(v.location_name) + "</td><td>" + escapeHtml(v.contact_email) + "</td><td>" + created + "</td><td><button class=\"btn btn-danger\" onclick=\"deleteVendor('" + v.id + "')\">Delete</button></td></tr>";
+        }).join("");
+      }
+
+      function showVendorForm() {
+        $("vendor-form-container").style.display = "block";
+        $("vendor-add-btn").style.display = "none";
+        $("vendor-username").value = "";
+        $("vendor-location").value = "";
+        $("vendor-email").value = "";
+        $("vendor-password").value = "";
+        $("vendor-edit-id").value = "";
+      }
+
+      function cancelVendorEdit() { $("vendor-form-container").style.display = "none"; $("vendor-add-btn").style.display = "inline-block"; }
+
+      async function saveVendor() {
+        const body = {
+          username: $("vendor-username").value,
+          location_name: $("vendor-location").value,
+          contact_email: $("vendor-email").value,
+        };
+        if ($("vendor-password").value) body.password = $("vendor-password").value;
+
+        try {
+          const data = await apiFetch("/vendors", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+          cancelVendorEdit();
+          loadVendors();
+          if (data.default_password) {
+            $("vendor-message").innerHTML = '<div class="success-msg">Vendor created. Default password: <strong>' + data.default_password + '</strong> — share securely.</div>';
+          } else {
+            $("vendor-message").innerHTML = '<div class="success-msg">Vendor created.</div>';
+          }
+          setTimeout(() => { $("vendor-message").innerHTML = ""; }, 10000);
+        } catch (e) {
+          $("vendor-message").innerHTML = '<div class="error-msg">Failed to save: ' + e.message + '</div>';
+        }
+      }
+
+      async function deleteVendor(id) {
+        if (!confirm("Delete this vendor?")) return;
+        try {
+          await apiFetch("/vendors/" + id, { method: "DELETE" });
+          loadVendors();
+        } catch (e) { alert("Failed to delete."); }
+      }
 
       /* ── Initial UI state ───────────────────── */
       updateStatusUI();
