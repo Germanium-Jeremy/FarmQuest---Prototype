@@ -13,7 +13,7 @@ import { SocketManager } from './ws/SocketManager.js';
 import { GameCoordinator } from './ws/GameCoordinator.js';
 
 const app = express();
-const port = Number(process.env.PORT ?? 3001);
+const port = Number(3001);
 const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? 'http://127.0.0.1:3000,http://localhost:3000').split(',').map((o) => o.trim()).filter(Boolean);
 
 const hits = new Map<string, { count: number; resetAt: number }>();
@@ -34,7 +34,7 @@ app.use('/api/vendor', vendorsRouter);
 app.use('/vendor', vendorPageRouter);
 app.use('/admin', adminPageRouter);
 
-const distPath = resolve(import.meta.dirname ?? '.', '../dist');
+const distPath = resolve(import.meta.dirname ?? '.', '../../dist');
 app.use(express.static(distPath));
 
 app.get('/{*splat}', (req, res) => {

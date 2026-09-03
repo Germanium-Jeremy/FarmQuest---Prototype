@@ -6,7 +6,7 @@ const router = Router();
 
 router.get('/', (_req, res) => {
   try {
-    const htmlPath = resolve(import.meta.dirname ?? '.', '../../src/admin/admin.html');
+    const htmlPath = resolve(import.meta.dirname ?? '.', '../../../src/admin/admin.html');
     const html = readFileSync(htmlPath, 'utf-8');
     res.type('html').send(html);
   } catch {
