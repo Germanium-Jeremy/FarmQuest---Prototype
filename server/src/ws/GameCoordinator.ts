@@ -1,8 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { GameTaskData, LeaderboardEntry, LobbyPlayer } from './types.js';
 
-type GameStatus = 'WAITING' | 'IN_PLAY' | 'FINISHED';
-
 const REWARD_TYPES = [
   'Grand Prize - Premium Gift Basket',
   '2nd Place - Restaurant Voucher',
@@ -16,148 +14,276 @@ const REWARD_TYPES = [
   '10th Place - FarmQuest Sticker Pack',
 ];
 
-const randomInt = (min: number, max: number) => Math.floor(min + Math.random() * (max - min + 1));
+const randomInt = (min: number, max: number) =>
+  Math.floor(min + Math.random() * (max - min + 1));
+
+interface PlayerInstance {
+  instanceId: string;
+  tasks: GameTaskData[];
+}
 
 export class GameCoordinator {
   private lobby: Map<string, LobbyPlayer> = new Map();
-  private status: GameStatus = 'WAITING';
-  private currentInstanceId: string | null = null;
-  private currentTasks: GameTaskData[] = [];
-  private completions: Array<{ playerId: string; displayName: string; score: number; completionTime: number }> = [];
-  private activePlayerIds: Set<string> = new Set();
-  private startPending = false;
+  /** Per-player instance: keyed by connId (sessionId) */
+  private playerInstances: Map<string, PlayerInstance> = new Map();
+  private completions: Array<{
+    playerId: string;
+    displayName: string;
+    score: number;
+    completionTime: number;
+  }> = [];
+  /** Players who have completed or timed out (by databaseId) */
+  private finishedPlayerIds: Set<string> = new Set();
 
-  getLobby(): LobbyPlayer[] { return [...this.lobby.values()]; }
-  getLobbyCount(): number { return this.lobby.size; }
-  getStatus(): GameStatus { return this.status; }
-  getCurrentInstanceId(): string | null { return this.currentInstanceId; }
+  getLobby(): LobbyPlayer[] {
+    return [...this.lobby.values()];
+  }
+  getLobbyCount(): number {
+    return this.lobby.size;
+  }
+
+  /** Returns 'IN_PLAY' while any player is still active, 'FINISHED' once all done */
+  getStatus(): 'IN_PLAY' | 'FINISHED' {
+    if (this.lobby.size === 0 && this.completions.length === 0) return 'FINISHED';
+    if (this.allPlayersFinished()) return 'FINISHED';
+    return 'IN_PLAY';
+  }
+
+  getCurrentInstanceId(): string | null {
+    // Return any active instance id (for backwards compat with DB calls)
+    for (const inst of this.playerInstances.values()) {
+      return inst.instanceId;
+    }
+    if (this.completions.length > 0) return null;
+    return null;
+  }
 
   joinLobby(player: LobbyPlayer): void {
     this.lobby.set(player.playerId, player);
-    this.activePlayerIds.add(player.playerId);
   }
 
   removeFromLobby(playerId: string): LobbyPlayer | undefined {
     const player = this.lobby.get(playerId);
-    this.lobby.delete(playerId);
-    this.activePlayerIds.delete(playerId);
+    if (player) {
+      // Mark as timed out if they were still playing
+      if (!this.finishedPlayerIds.has(player.databaseId)) {
+        this.finishedPlayerIds.add(player.databaseId);
+      }
+      this.lobby.delete(playerId);
+      this.playerInstances.delete(playerId);
+    }
     return player;
   }
 
   /**
-   * Auto-start the game when the first player joins.
-   * Returns null if the game is already in play or a start is already pending.
-   * Returns the start info if this call triggers the start.
+   * Create a new independent game instance for a single player.
+   * Each player gets their own instance with their own tasks.
    */
-  autoStartGame(mapId: string): { instanceId: string; tasks: GameTaskData[] } | null {
-    if (this.status === 'IN_PLAY' || this.startPending) return null;
-    this.startPending = true;
-    return this.startGame(mapId);
+  createPlayerInstance(
+    connId: string,
+    mapId: string,
+  ): { instanceId: string; tasks: GameTaskData[] } {
+    const instanceId = randomUUID();
+    const tasks = this.generateTasks(mapId);
+    this.playerInstances.set(connId, { instanceId, tasks });
+    return { instanceId, tasks };
   }
 
-  startGame(mapId: string): { instanceId: string; tasks: GameTaskData[] } {
-    if (this.lobby.size === 0) {
-      throw new Error('No players in the lobby.');
-    }
-    this.status = 'IN_PLAY';
-    this.startPending = false;
-    this.currentInstanceId = randomUUID();
-    this.completions = [];
-    this.currentTasks = this.generateTasks(mapId);
-    this.activePlayerIds = new Set(this.lobby.keys());
-    return { instanceId: this.currentInstanceId, tasks: this.currentTasks };
+  getPlayerInstance(connId: string): PlayerInstance | undefined {
+    return this.playerInstances.get(connId);
   }
 
-  playerComplete(playerId: string, score: number, completionTime: number): { rank: number; displayName: string } | null {
-    if (this.status !== 'IN_PLAY') return null;
+  playerComplete(
+    playerId: string,
+    score: number,
+    completionTime: number,
+  ): { rank: number; displayName: string } | null {
     const player = this.lobby.get(playerId);
     if (!player) return null;
-    if (this.completions.some((c) => c.playerId === player.databaseId)) return null;
+    // Idempotent: don't add duplicate completions
+    if (this.completions.some((c) => c.playerId === player.databaseId))
+      return null;
 
-    this.completions.push({ playerId: player.databaseId, displayName: player.displayName, score, completionTime });
-    this.completions.sort((a, b) => a.completionTime - b.completionTime || b.score - a.score);
-    const rank = this.completions.findIndex((c) => c.playerId === player.databaseId) + 1;
+    this.finishedPlayerIds.add(player.databaseId);
+    this.completions.push({
+      playerId: player.databaseId,
+      displayName: player.displayName,
+      score,
+      completionTime,
+    });
+    this.completions.sort(
+      (a, b) => a.completionTime - b.completionTime || b.score - a.score,
+    );
+    const rank =
+      this.completions.findIndex((c) => c.playerId === player.databaseId) + 1;
     return { rank, displayName: player.displayName };
   }
 
+  markPlayerTimedOut(databaseId: string): void {
+    this.finishedPlayerIds.add(databaseId);
+  }
+
   endGame(): { leaderboard: LeaderboardEntry[] } {
-    this.status = 'FINISHED';
-    this.startPending = false;
     const leaderboard = this.completions.map((c, i) => ({
-      rank: i + 1, playerId: c.playerId, displayName: c.displayName,
-      score: c.score, completionTime: c.completionTime,
+      rank: i + 1,
+      playerId: c.playerId,
+      displayName: c.displayName,
+      score: c.score,
+      completionTime: c.completionTime,
       rewardType: i < 10 ? REWARD_TYPES[i] : undefined,
     }));
     return { leaderboard };
   }
 
-  /** Get top players for reward issuance (min(completed, 10)) */
-  getTopPlayers(): Array<{ playerId: string; score: number; completionTime: number; rank: number; rewardType?: string }> {
+  getTopPlayers(): Array<{
+    playerId: string;
+    score: number;
+    completionTime: number;
+    rank: number;
+    rewardType?: string;
+  }> {
     const maxRewards = Math.min(this.completions.length, 10);
     return this.completions.slice(0, maxRewards).map((c, i) => ({
-      playerId: c.playerId, score: c.score, completionTime: c.completionTime,
-      rank: i + 1, rewardType: REWARD_TYPES[i],
+      playerId: c.playerId,
+      score: c.score,
+      completionTime: c.completionTime,
+      rank: i + 1,
+      rewardType: REWARD_TYPES[i],
     }));
   }
 
-  /** Check if all active players have completed or timed out */
+  /** True when every player in the lobby has completed or timed out */
   allPlayersFinished(): boolean {
-    if (this.status !== 'IN_PLAY') return false;
-    for (const playerId of this.activePlayerIds) {
-      if (!this.completions.some(c => c.playerId === playerId)) return false;
+    if (this.lobby.size === 0) return this.completions.length > 0;
+    for (const player of this.lobby.values()) {
+      if (!this.finishedPlayerIds.has(player.databaseId)) return false;
     }
     return true;
   }
 
-  getActivePlayerIds(): Set<string> { return this.activePlayerIds; }
-
   reset(): void {
     this.lobby.clear();
-    this.status = 'WAITING';
-    this.currentInstanceId = null;
-    this.currentTasks = [];
+    this.playerInstances.clear();
     this.completions = [];
-    this.activePlayerIds.clear();
-    this.startPending = false;
+    this.finishedPlayerIds.clear();
   }
 
   private generateTasks(_mapId: string): GameTaskData[] {
-    const cropTypes: Array<'maize' | 'cassava' | 'coffee'> = ['maize', 'cassava', 'coffee'];
+    const cropTypes: Array<'maize' | 'cassava' | 'coffee'> = [
+      'maize',
+      'cassava',
+      'coffee',
+    ];
     const totalSeeds = randomInt(2, 5);
     const waterActions = randomInt(1, 2);
     const numCrops = randomInt(1, 3);
     const selectedCrops = this.shuffle(cropTypes).slice(0, numCrops);
 
-    const cropAmounts: Array<{ cropType: 'maize' | 'cassava' | 'coffee'; amount: number }> = [];
+    const cropAmounts: Array<{
+      cropType: 'maize' | 'cassava' | 'coffee';
+      amount: number;
+    }> = [];
     let remaining = totalSeeds;
     for (let i = 0; i < selectedCrops.length; i++) {
-      const amount = i === selectedCrops.length - 1
-        ? remaining
-        : randomInt(1, Math.max(1, remaining - (selectedCrops.length - i - 1)));
+      const amount =
+        i === selectedCrops.length - 1
+          ? remaining
+          : randomInt(
+              1,
+              Math.max(1, remaining - (selectedCrops.length - i - 1)),
+            );
       cropAmounts.push({ cropType: selectedCrops[i], amount });
       remaining -= amount;
     }
 
     const tasks: GameTaskData[] = [];
     for (const crop of cropAmounts) {
-      const itemName = crop.cropType === 'coffee' ? (crop.amount === 1 ? 'bean' : 'beans') : (crop.amount === 1 ? 'seed' : 'seeds');
+      const itemName =
+        crop.cropType === 'coffee'
+          ? crop.amount === 1
+            ? 'bean'
+            : 'beans'
+          : crop.amount === 1
+            ? 'seed'
+            : 'seeds';
       tasks.push({
         id: `collect-${crop.cropType}-${randomInt(1000, 9999)}`,
-        type: crop.amount === 1 ? 'collect_seed' : 'collect_multiple_seeds',
-        cropType: crop.cropType, targetAmount: crop.amount, currentAmount: 0,
-        timeLimit: 20 + crop.amount * 8, scoreReward: 80 + crop.amount * 40,
+        type:
+          crop.amount === 1
+            ? 'collect_seed'
+            : 'collect_multiple_seeds',
+        cropType: crop.cropType,
+        targetAmount: crop.amount,
+        currentAmount: 0,
+        timeLimit: 20 + crop.amount * 8,
+        scoreReward: 80 + crop.amount * 40,
         description: `Find ${crop.amount} ${this.cropLabel(crop.cropType)} ${itemName}`,
       });
     }
-    tasks.push({ id: `plant-${randomInt(1000, 9999)}`, type: totalSeeds === 1 ? 'plant_seed' : 'plant_multiple_seeds', targetAmount: totalSeeds, currentAmount: 0, timeLimit: 25 + totalSeeds * 6, scoreReward: 100 + totalSeeds * 30, description: totalSeeds === 1 ? 'Plant your seed in a farm plot' : `Plant ${totalSeeds} collected seeds` });
-    tasks.push({ id: `find-water-${randomInt(1000, 9999)}`, type: 'find_water', targetAmount: 1, currentAmount: 0, timeLimit: 25, scoreReward: 100, description: 'Find the active water source' });
-    tasks.push({ id: `water-${randomInt(1000, 9999)}`, type: waterActions === 1 ? 'water_crop' : 'water_crop_multiple', targetAmount: totalSeeds * waterActions, currentAmount: 0, timeLimit: 25 + totalSeeds * waterActions * 6, scoreReward: 100 + totalSeeds * waterActions * 35, description: waterActions === 1 ? 'Water every planted crop' : `Water crops ${waterActions} times each` });
-    tasks.push({ id: `harvest-${randomInt(1000, 9999)}`, type: totalSeeds === 1 ? 'harvest_crop' : 'harvest_multiple', targetAmount: totalSeeds, currentAmount: 0, timeLimit: 25 + totalSeeds * 6, scoreReward: 150 + totalSeeds * 50, description: totalSeeds === 1 ? 'Harvest your crop' : `Harvest ${totalSeeds} ready crops` });
+    tasks.push({
+      id: `plant-${randomInt(1000, 9999)}`,
+      type:
+        totalSeeds === 1 ? 'plant_seed' : 'plant_multiple_seeds',
+      targetAmount: totalSeeds,
+      currentAmount: 0,
+      timeLimit: 25 + totalSeeds * 6,
+      scoreReward: 100 + totalSeeds * 30,
+      description:
+        totalSeeds === 1
+          ? 'Plant your seed in a farm plot'
+          : `Plant ${totalSeeds} collected seeds`,
+    });
+    tasks.push({
+      id: `find-water-${randomInt(1000, 9999)}`,
+      type: 'find_water',
+      targetAmount: 1,
+      currentAmount: 0,
+      timeLimit: 25,
+      scoreReward: 100,
+      description: 'Find the active water source',
+    });
+    tasks.push({
+      id: `water-${randomInt(1000, 9999)}`,
+      type:
+        waterActions === 1
+          ? 'water_crop'
+          : 'water_crop_multiple',
+      targetAmount: totalSeeds * waterActions,
+      currentAmount: 0,
+      timeLimit: 25 + totalSeeds * waterActions * 6,
+      scoreReward: 100 + totalSeeds * waterActions * 35,
+      description:
+        waterActions === 1
+          ? 'Water every planted crop'
+          : `Water crops ${waterActions} times each`,
+    });
+    tasks.push({
+      id: `harvest-${randomInt(1000, 9999)}`,
+      type:
+        totalSeeds === 1 ? 'harvest_crop' : 'harvest_multiple',
+      targetAmount: totalSeeds,
+      currentAmount: 0,
+      timeLimit: 25 + totalSeeds * 6,
+      scoreReward: 150 + totalSeeds * 50,
+      description:
+        totalSeeds === 1
+          ? 'Harvest your crop'
+          : `Harvest ${totalSeeds} ready crops`,
+    });
     return tasks;
   }
 
   private cropLabel(cropType: string): string {
-    switch (cropType) { case 'maize': return 'Maize'; case 'cassava': return 'Cassava'; case 'coffee': return 'Coffee'; default: return cropType; }
+    switch (cropType) {
+      case 'maize':
+        return 'Maize';
+      case 'cassava':
+        return 'Cassava';
+      case 'coffee':
+        return 'Coffee';
+      default:
+        return cropType;
+    }
   }
 
   private shuffle<T>(items: T[]): T[] {

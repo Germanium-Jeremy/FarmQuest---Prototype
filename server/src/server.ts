@@ -13,7 +13,7 @@ import { SocketManager } from "./ws/SocketManager.js";
 import { GameCoordinator } from "./ws/GameCoordinator.js";
 
 const app = express();
-const port = Number(process.env.PORT ?? 3001);
+const port = Number(3001);
 const normalizeOrigin = (origin: string): string =>
   origin.trim().replace(/\/+$/, "");
 const allowedOrigins = (

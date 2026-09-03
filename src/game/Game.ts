@@ -243,7 +243,11 @@ export class Game {
 
   private startLocalGame(): void {
     const tasks = new ChallengeGenerator().generate(3);
-    this.startGameFromServer(tasks as any);
+    this.startGameFromServer({
+      instanceId: 'local',
+      mapId: this.selectedMapId,
+      tasks: tasks as any,
+    });
   }
 
   private startGameFromServer(socketTasks: {

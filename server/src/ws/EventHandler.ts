@@ -2,7 +2,6 @@ import { GameCoordinator } from "./GameCoordinator.js";
 import { SocketManager } from "./SocketManager.js";
 import { ClientMessage, AdminMessage, LobbyPlayer } from "./types.js";
 import {
-  getPlayer,
   registerPlayerForInstance,
   updateInstancePlayerStatus,
   insertLeaderboardEntry,
@@ -14,7 +13,6 @@ import {
 import { CouponService } from "../services/CouponService.js";
 import { createEmailService } from "../services/EmailService.js";
 
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "dev-admin-token-change-me";
 const couponService = new CouponService();
 const emailService = createEmailService();
 
@@ -40,8 +38,6 @@ export class EventHandler {
   handleAdminMessage(connId: string, message: AdminMessage): void {
     switch (message.type) {
       case "admin_start_game":
-        // Deprecated: admin can no longer start games.
-        // Games auto-start when the first player joins.
         this.socketManager.sendToClient(connId, {
           type: "error",
           message: "Games start automatically when players join.",
@@ -55,27 +51,34 @@ export class EventHandler {
 
   handleDisconnect(connId: string): void {
     const player = this.coordinator.removeFromLobby(connId);
-    if (player && this.coordinator.getStatus() === "WAITING") {
-      this.socketManager.broadcastToClients({
-        type: "lobby_update",
-        players: this.coordinator.getLobby(),
-        count: this.coordinator.getLobbyCount(),
-      });
+    if (player) {
+      // Mark as timed out in DB if we have an instance
+      const inst = this.coordinator.getPlayerInstance(connId);
+      if (inst) {
+        updateInstancePlayerStatus(inst.instanceId, player.databaseId, "TIMEOUT");
+      }
+
       this.socketManager.broadcastToAdmins({
         type: "player_left",
         displayName: player.displayName,
       });
-    } else if (player && this.coordinator.getStatus() === "IN_PLAY") {
-      const instanceId = this.coordinator.getCurrentInstanceId();
-      if (instanceId)
-        updateInstancePlayerStatus(instanceId, player.databaseId, "TIMEOUT");
-      // Check if all remaining active players have finished
+      this.socketManager.broadcastToAdmins({
+        type: "lobby_update",
+        players: this.coordinator.getLobby(),
+        count: this.coordinator.getLobbyCount(),
+      });
+
+      // Check if all remaining players have finished
       if (this.coordinator.allPlayersFinished()) {
         void this.finishGame();
       }
     }
   }
 
+  /**
+   * Each player who joins gets their own independent game instance
+   * with their own tasks, starting immediately.
+   */
   private handleJoinLobby(
     connId: string,
     message: {
@@ -96,30 +99,50 @@ export class EventHandler {
     };
     this.coordinator.joinLobby(player);
 
-    // Auto-start game on first player join
-    if (this.coordinator.getStatus() === "WAITING" && this.coordinator.getLobbyCount() === 1) {
-      this.autoStartGame(player, message.mapId);
-      return;
-    }
+    // Create an independent instance for this player
+    const { instanceId, tasks } = this.coordinator.createPlayerInstance(
+      connId,
+      message.mapId,
+    );
 
-    // If game is already in play, register player for existing instance
-    const instanceId = this.coordinator.getCurrentInstanceId();
-    if (instanceId) {
-      registerPlayerForInstance(
-        instanceId,
-        message.playerId,
-        connId,
-        player.characterType,
-        player.mapId,
-      );
-      updateInstancePlayerStatus(instanceId, message.playerId, "PLAYING");
-    }
+    // Persist the event instance in the database
+    const dbInstance = createEventInstance(message.mapId);
+    updateInstanceStatus(dbInstance.id, "IN_PLAY");
+    registerPlayerForInstance(
+      dbInstance.id,
+      message.playerId,
+      connId,
+      player.characterType,
+      player.mapId,
+    );
+    updateInstancePlayerStatus(dbInstance.id, message.playerId, "PLAYING");
 
-    this.socketManager.broadcastToClients({
-      type: "lobby_update",
-      players: this.coordinator.getLobby(),
-      count: this.coordinator.getLobbyCount(),
+    // Send game_start to this player immediately
+    this.socketManager.sendToClient(connId, {
+      type: "game_start",
+      instanceId: dbInstance.id,
+      mapId: message.mapId,
+      tasks: tasks.map((t) => ({
+        id: t.id,
+        type: t.type,
+        cropType: t.cropType,
+        targetAmount: t.targetAmount,
+        currentAmount: t.currentAmount,
+        timeLimit: t.timeLimit,
+        scoreReward: t.scoreReward,
+        description: t.description,
+      })),
     });
+
+    // If this is the first player, notify admins the event is now active
+    if (this.coordinator.getLobbyCount() === 1) {
+      this.socketManager.broadcastToAdmins({
+        type: "game_started",
+        instanceId: dbInstance.id,
+      });
+    }
+
+    // Notify admins
     this.socketManager.broadcastToAdmins({
       type: "player_joined",
       displayName: player.displayName,
@@ -133,55 +156,6 @@ export class EventHandler {
     });
   }
 
-  private autoStartGame(player: LobbyPlayer, mapId: string): void {
-    try {
-      const result = this.coordinator.autoStartGame(mapId);
-      if (!result) return; // Already started
-
-      // Persist event instance
-      const instance = createEventInstance(mapId);
-      updateInstanceStatus(instance.id, "IN_PLAY");
-
-      // Register all lobby players
-      for (const p of this.coordinator.getLobby()) {
-        registerPlayerForInstance(
-          instance.id,
-          p.databaseId,
-          p.playerId,
-          p.characterType,
-          p.mapId,
-        );
-        updateInstancePlayerStatus(instance.id, p.databaseId, "PLAYING");
-      }
-
-      this.socketManager.broadcastToAdmins({
-        type: "game_started",
-        instanceId: instance.id,
-      });
-
-      // Send game_start to all lobby players
-      for (const p of this.coordinator.getLobby()) {
-        this.socketManager.sendToClient(p.playerId, {
-          type: "game_start",
-          instanceId: instance.id,
-          mapId,
-          tasks: result.tasks.map((t) => ({
-            id: t.id,
-            type: t.type,
-            cropType: t.cropType,
-            targetAmount: t.targetAmount,
-            currentAmount: t.currentAmount,
-            timeLimit: t.timeLimit,
-            scoreReward: t.scoreReward,
-            description: t.description,
-          })),
-        });
-      }
-    } catch (error: any) {
-      console.error("Auto-start failed:", error);
-    }
-  }
-
   private handleGameComplete(
     connId: string,
     message: { playerId: string; score: number; completionTime: number },
@@ -192,27 +166,31 @@ export class EventHandler {
       message.completionTime,
     );
     if (!result) return;
+
     const lobbyPlayer = this.coordinator
       .getLobby()
       .find((l) => l.playerId === connId);
-    const instanceId = this.coordinator.getCurrentInstanceId();
-    if (instanceId) {
-      const dbId = lobbyPlayer?.databaseId ?? message.playerId;
+
+    // Update DB for this player's instance
+    const inst = this.coordinator.getPlayerInstance(connId);
+    if (inst && lobbyPlayer) {
       updateInstancePlayerStatus(
-        instanceId,
-        dbId,
+        inst.instanceId,
+        lobbyPlayer.databaseId,
         "COMPLETED",
         message.score,
         message.completionTime,
       );
       insertLeaderboardEntry(
-        instanceId,
-        dbId,
+        inst.instanceId,
+        lobbyPlayer.databaseId,
         result.rank,
         message.score,
         message.completionTime,
       );
     }
+
+    // Broadcast updated leaderboard to admins
     this.socketManager.broadcastToAdmins({
       type: "leaderboard_update",
       entries: this.coordinator
@@ -221,13 +199,14 @@ export class EventHandler {
           rank: p.rank,
           playerId: p.playerId,
           displayName:
-            this.coordinator.getLobby().find((l) => l.playerId === p.playerId)
+            this.coordinator.getLobby().find((l) => l.databaseId === p.playerId)
               ?.displayName ?? "Unknown",
           score: p.score,
           completionTime: p.completionTime,
           rewardType: p.rewardType,
         })),
     });
+
     this.socketManager.sendToClient(connId, {
       type: "player_completed",
       displayName: result.displayName,
@@ -246,17 +225,17 @@ export class EventHandler {
   }
 
   private async finishGame(): Promise<void> {
-    if (this.coordinator.getStatus() !== "IN_PLAY") return;
+    // Only finalize once
+    if (this.coordinator.allPlayersFinished() === false) return;
+
     const { leaderboard } = this.coordinator.endGame();
-    const instanceId = this.coordinator.getCurrentInstanceId();
-    if (instanceId) updateInstanceStatus(instanceId, "FINISHED");
 
     this.socketManager.broadcastToAdmins({
       type: "game_finished",
       leaderboard,
     });
 
-    // Send game_finished to each player
+    // Send game_finished to each player in the leaderboard
     for (const entry of leaderboard) {
       const lobbyPlayer = this.coordinator
         .getLobby()
@@ -266,6 +245,20 @@ export class EventHandler {
           type: "game_finished",
           leaderboard,
           yourRank: entry.rank,
+        });
+      }
+    }
+
+    // Also send game_finished to players who didn't complete (timed out)
+    for (const player of this.coordinator.getLobby()) {
+      const inLeaderboard = leaderboard.some(
+        (e) => e.playerId === player.databaseId,
+      );
+      if (!inLeaderboard) {
+        this.socketManager.sendToClient(player.playerId, {
+          type: "game_finished",
+          leaderboard,
+          yourRank: leaderboard.length + 1,
         });
       }
     }
@@ -280,13 +273,11 @@ export class EventHandler {
           .find((l) => l.databaseId === entry.playerId);
         if (!player || !lobbyPlayer) continue;
 
-        // Idempotent: get existing coupon or create new one
-        const { coupon, alreadyIssued } = couponService.getOrCreateCoupon(
+        const { coupon } = couponService.getOrCreateCoupon(
           player.id,
           lobbyPlayer.sessionId,
         );
 
-        // Only send email if not already sent
         if (coupon.status !== "SENT") {
           await emailService.sendCouponEmail({
             to: player.email,

@@ -40,7 +40,10 @@ export class GameSocket {
   async connect(sessionId: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const url = `${protocol}//${window.location.host}/ws?sessionId=${sessionId}`;
+      // In dev mode (Vite on 3000), the server WebSocket is on 3001.
+      // In production they share the same origin.
+      const wsHost = import.meta.env.DEV ? 'localhost:3001' : window.location.host;
+      const url = `${protocol}//${wsHost}/ws?sessionId=${sessionId}`;
       this.ws = new WebSocket(url);
 
       this.ws.onopen = () => {
