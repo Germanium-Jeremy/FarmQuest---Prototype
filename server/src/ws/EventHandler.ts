@@ -9,6 +9,7 @@ import {
   updateInstanceStatus,
   getPlayer as getPlayerDb,
   markCouponSent,
+  hasPlayerPlayed,
 } from "../storage/database.js";
 import { CouponService } from "../services/CouponService.js";
 import { createEmailService } from "../services/EmailService.js";
@@ -98,6 +99,33 @@ export class EventHandler {
       mapId: message.mapId,
     };
     this.coordinator.joinLobby(player);
+
+    // Check if this player has already played (in-memory or database)
+    if (
+      this.coordinator.hasPlayerFinished(player.databaseId) ||
+      hasPlayerPlayed(player.databaseId)
+    ) {
+      // Player already participated — send them the leaderboard instead
+      this.socketManager.sendToClient(connId, {
+        type: "game_finished",
+        leaderboard: this.coordinator
+          .getTopPlayers()
+          .map((p) => ({
+            rank: p.rank,
+            playerId: p.playerId,
+            displayName:
+              this.coordinator.getLobby().find((l) => l.databaseId === p.playerId)
+                ?.displayName ?? "Unknown",
+            score: p.score,
+            completionTime: p.completionTime,
+            rewardType: p.rewardType,
+          })),
+        yourRank: 0,
+      });
+      // Remove from lobby — they won't be playing
+      this.coordinator.removeFromLobby(connId);
+      return;
+    }
 
     // Create an independent instance for this player
     const { instanceId, tasks } = this.coordinator.createPlayerInstance(

@@ -144,8 +144,7 @@ export class Game {
         })),
         msg.yourRank,
         this.scoreManager.getScore(),
-        msg.yourRank <= 10,
-        () => this.goToCharacterSelect(),
+        msg.yourRank > 0 && msg.yourRank <= 10,
       );
     });
 
@@ -597,9 +596,7 @@ export class Game {
 
   private onTimeout(): void {
     this.state = GameState.GAME_OVER;
-    this.hud.showGameOver(this.challengeManager.getCurrentTask(), () =>
-      this.goToCharacterSelect(),
-    );
+    this.hud.showGameOver(this.challengeManager.getCurrentTask());
   }
 
   private async onGameComplete(): Promise<void> {
@@ -630,9 +627,7 @@ export class Game {
       console.error(error);
     }
 
-    this.hud.showComplete(email, false, () => {
-      this.goToCharacterSelect();
-    });
+    this.hud.showComplete(email, false);
   }
 
   private onTaskStarted(task: GameTask, isFirstTask: boolean): void {

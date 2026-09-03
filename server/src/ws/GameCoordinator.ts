@@ -123,6 +123,11 @@ export class GameCoordinator {
     this.finishedPlayerIds.add(databaseId);
   }
 
+  /** Check if a player has already completed or timed out */
+  hasPlayerFinished(databaseId: string): boolean {
+    return this.finishedPlayerIds.has(databaseId);
+  }
+
   endGame(): { leaderboard: LeaderboardEntry[] } {
     const leaderboard = this.completions.map((c, i) => ({
       rank: i + 1,

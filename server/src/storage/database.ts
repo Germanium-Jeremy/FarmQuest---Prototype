@@ -88,6 +88,12 @@ export function upsertPlayer(email: string, displayName?: string): PlayerRow {
 
 export function getPlayer(playerId: string): PlayerRow | undefined { return db.prepare('SELECT * FROM players WHERE id = ?').get(playerId) as PlayerRow | undefined; }
 
+/** Check if a player has already completed or timed out in any event instance. */
+export function hasPlayerPlayed(playerId: string): boolean {
+  const row = db.prepare('SELECT 1 FROM instance_players WHERE player_id = ? AND status IN (?, ?) LIMIT 1').get(playerId, 'COMPLETED', 'TIMEOUT');
+  return !!row;
+}
+
 export function createSession(playerId: string): SessionRow {
   const session: SessionRow = { id: randomUUID(), player_id: playerId, started_at: new Date().toISOString(), completed_at: null, status: 'IN_PROGRESS', total_score: 0, highest_level: 0 };
   db.prepare('INSERT INTO game_sessions (id, player_id, started_at, status, total_score, highest_level) VALUES (?, ?, ?, ?, ?, ?)').run(session.id, session.player_id, session.started_at, session.status, session.total_score, session.highest_level);

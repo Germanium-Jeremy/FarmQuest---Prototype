@@ -216,7 +216,6 @@ export class HUD {
     yourRank: number,
     yourScore: number,
     isTopTen: boolean,
-    onPlayAgain: () => void,
   ): void {
     this.hideHUD();
     this.hideTaskModal();
@@ -232,10 +231,13 @@ export class HUD {
         return `<div style="${h}padding:8px 12px;border-radius:8px;margin-bottom:4px;display:flex;justify-content:space-between;font-size:18px;"><span>${m} ${e.rank}. ${e.displayName}</span><span style="color:#ffe36d;">${e.score} pts (${t})</span></div>`;
       })
       .join("");
-    this.screenEl.innerHTML = `<div style="width:min(92vw,560px);"><h1 style="font-size:clamp(34px,7vw,52px);margin:0 0 10px;">🏆 Leaderboard</h1><div style="background:rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:16px;max-height:320px;overflow-y:auto;">${rows}</div><div style="font-size:22px;margin-bottom:6px;">Your Rank: <strong>#${yourRank}</strong></div><div style="font-size:22px;color:#ffe36d;margin-bottom:16px;">Your Score: ${yourScore} pts</div>${isTopTen ? '<div style="background:rgba(255,227,109,0.12);border:2px solid #ffe36d;border-radius:16px;padding:18px;margin-bottom:20px;"><div style="font-size:24px;font-weight:900;color:#ffe36d;">🎉 Top 10 — Reward Unlocked!</div><div style="font-size:18px;margin-top:8px;">Check your email for your QR code coupon.</div></div>' : '<p style="font-size:18px;color:#d8f5c6;margin-bottom:16px;">Top 10 players receive rewards!</p>'}<button id="play-again" style="${this.btn("#52a447")}">Play Again</button></div>`;
-    document
-      .getElementById("play-again")
-      ?.addEventListener("click", onPlayAgain);
+    const yourRankText = yourRank > 0 ? `#${yourRank}` : "—";
+    const rewardSection = yourRank > 0 && isTopTen
+      ? '<div style="background:rgba(255,227,109,0.12);border:2px solid #ffe36d;border-radius:16px;padding:18px;margin-bottom:20px;"><div style="font-size:24px;font-weight:900;color:#ffe36d;">🎉 Top 10 — Reward Unlocked!</div><div style="font-size:18px;margin-top:8px;">Check your email for your QR code coupon.</div></div>'
+      : yourRank > 0
+        ? '<p style="font-size:18px;color:#d8f5c6;margin-bottom:16px;">Top 10 players receive rewards!</p>'
+        : '<p style="font-size:18px;color:#888;margin-bottom:16px;">You have already completed this event.</p>';
+    this.screenEl.innerHTML = `<div style="width:min(92vw,560px);"><h1 style="font-size:clamp(34px,7vw,52px);margin:0 0 10px;">🏆 Leaderboard</h1><div style="background:rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:16px;max-height:320px;overflow-y:auto;">${rows}</div>${yourRank > 0 ? `<div style="font-size:22px;margin-bottom:6px;">Your Rank: <strong>${yourRankText}</strong></div><div style="font-size:22px;color:#ffe36d;margin-bottom:16px;">Your Score: ${yourScore} pts</div>` : `<div style="font-size:22px;color:#888;margin-bottom:16px;">You already played in this event.</div>`}${rewardSection}</div>`;
   }
 
   showFirstTask(task: GameTask, onStart: () => void): void {
@@ -286,20 +288,18 @@ export class HUD {
     }, 1150);
   }
 
-  showGameOver(currentTask: GameTask | null, onRetry: () => void): void {
+  showGameOver(currentTask: GameTask | null): void {
     this.hideHUD();
     this.hideTaskModal();
     this.screenEl.style.display = "flex";
-    this.screenEl.innerHTML = `<div style="width:min(92vw,560px);"><h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 10px;color:#ff766e;">⏱ Time's Up!</h1><p style="font-size:20px;color:#e9f6e4;margin:0 0 18px;">You did not complete the current task.</p>${currentTask ? `<div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:16px;margin-bottom:22px;"><div style="font-size:12px;font-weight:1000;color:#bff28a;margin-bottom:5px;">CURRENT TASK</div><div style="font-size:28px;font-weight:1000;">${taskIcon(currentTask)} ${titleCase(currentTask.description)}</div><div style="font-size:20px;color:#ffe36d;margin-top:8px;">Progress: ${currentTask.currentAmount} / ${currentTask.targetAmount}</div></div>` : ""}<p style="font-size:28px;color:#ffe36d;margin:0 0 28px;">⭐ Final Score: ${this.scoreManager.getScore()}</p><button id="retry-btn" style="${this.btn("#e5534b")}">Play Again</button></div>`;
-    document.getElementById("retry-btn")?.addEventListener("click", onRetry);
+    this.screenEl.innerHTML = `<div style="width:min(92vw,560px);"><h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 10px;color:#ff766e;">⏱ Time's Up!</h1><p style="font-size:20px;color:#e9f6e4;margin:0 0 18px;">You did not complete the current task.</p>${currentTask ? `<div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:16px;margin-bottom:22px;"><div style="font-size:12px;font-weight:1000;color:#bff28a;margin-bottom:5px;">CURRENT TASK</div><div style="font-size:28px;font-weight:1000;">${taskIcon(currentTask)} ${titleCase(currentTask.description)}</div><div style="font-size:20px;color:#ffe36d;margin-top:8px;">Progress: ${currentTask.currentAmount} / ${currentTask.targetAmount}</div></div>` : ""}<p style="font-size:28px;color:#ffe36d;margin:0 0 28px;">⭐ Final Score: ${this.scoreManager.getScore()}</p><p style="font-size:18px;color:#888;">Waiting for the event to finish…</p></div>`;
   }
 
-  showComplete(email: string, emailSent: boolean, onRetry: () => void): void {
+  showComplete(email: string, emailSent: boolean): void {
     this.hideHUD();
     this.hideTaskModal();
     this.screenEl.style.display = "flex";
-    this.screenEl.innerHTML = `<div style="width:min(92vw,600px);"><h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 10px;color:#bff28a;">🎉 FarmQuest Complete!</h1><p style="font-size:24px;color:#e9f6e4;margin:0 0 8px;font-weight:900;">All tasks completed!</p><p style="font-size:28px;color:#ffe36d;margin:0 0 22px;">⭐ Final Score: ${this.scoreManager.getScore()}</p><div style="display:inline-block;background:rgba(255,227,109,0.12);border:2px solid #ffe36d;border-radius:18px;padding:22px 32px;margin-bottom:24px;"><h2 style="font-size:28px;margin:0 0 8px;color:#ffe36d;">🎁 Reward Pending</h2><p style="font-size:21px;margin:0 0 14px;">Your results are being finalized. Top 10 players will receive reward emails when the event ends.</p><div style="font-size:22px;font-weight:1000;margin-bottom:14px;">${this.mask(email)}</div></div><br><button id="retry-btn" style="${this.btn("#52a447")}">Play Again</button></div>`;
-    document.getElementById("retry-btn")?.addEventListener("click", onRetry);
+    this.screenEl.innerHTML = `<div style="width:min(92vw,600px);"><h1 style="font-size:clamp(38px,8vw,58px);margin:0 0 10px;color:#bff28a;">🎉 FarmQuest Complete!</h1><p style="font-size:24px;color:#e9f6e4;margin:0 0 8px;font-weight:900;">All tasks completed!</p><p style="font-size:28px;color:#ffe36d;margin:0 0 22px;">⭐ Final Score: ${this.scoreManager.getScore()}</p><div style="display:inline-block;background:rgba(255,227,109,0.12);border:2px solid #ffe36d;border-radius:18px;padding:22px 32px;margin-bottom:24px;"><h2 style="font-size:28px;margin:0 0 8px;color:#ffe36d;">🎁 Reward Pending</h2><p style="font-size:21px;margin:0 0 14px;">Your results are being finalized. Top 10 players will receive reward emails when the event ends.</p><div style="font-size:22px;font-weight:1000;margin-bottom:14px;">${this.mask(email)}</div></div><p style="font-size:18px;color:#888;margin-top:16px;">Waiting for the event to finish…</p></div>`;
   }
 
   showRewardPreparing(email: string): void {
