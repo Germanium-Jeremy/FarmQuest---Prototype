@@ -266,7 +266,7 @@ export class Game {
       description: t.description,
     }));
 
-    this.applyMapTheme(socketTasks.mapId);
+    this.applyMapTheme(socketTasks.mapId as MapId);
     this.state = GameState.PLAYING;
     this.scoreManager.reset();
     this.challengeManager.reset();

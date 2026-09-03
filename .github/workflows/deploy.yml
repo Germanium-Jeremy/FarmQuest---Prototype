@@ -1,0 +1,47 @@
+name: Deploy FarmQuest
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: farmquest-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build:all
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy on Docker host
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -eu
+            cd "${{ secrets.DEPLOY_PATH }}"
+            git fetch --prune origin
+            git reset --hard origin/main
+            test -f .env
+            docker compose config >/dev/null
+            docker compose up -d --build --remove-orphans
+            docker compose ps
+            curl --fail --silent --show-error http://127.0.0.1:${HOST_PORT:-80}/api/health >/dev/null
+            curl --fail --silent --show-error http://127.0.0.1:${HOST_PORT:-80}/admin | grep -q 'id="start-btn"'
