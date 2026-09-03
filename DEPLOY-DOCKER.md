@@ -14,7 +14,7 @@ docker compose version
 Clone the repository into a persistent directory, for example `/home/deploy/farmquest`, and create `/home/deploy/farmquest/.env`:
 
 ```dotenv
-HOST_PORT=80
+HOST_PORT=8080
 ALLOWED_ORIGINS=http://168.231.85.220
 ADMIN_TOKEN=replace-with-a-long-random-value
 EMAIL_PROVIDER=development
@@ -34,8 +34,8 @@ Start the first deployment:
 cd /home/deploy/farmquest
 docker compose up -d --build
 docker compose ps
-curl --fail http://127.0.0.1/api/health
-curl --fail http://127.0.0.1/admin | grep 'id="start-btn"'
+curl --fail http://127.0.0.1:8080/api/health
+curl --fail http://127.0.0.1:8080/admin | grep 'id="start-btn"'
 ```
 
 If port 80 is already occupied, do not stop the existing service blindly. Set `HOST_PORT=8080` in `.env`, then restart:
@@ -47,7 +47,7 @@ curl --fail http://127.0.0.1:8080/api/health
 curl --fail http://127.0.0.1:8080/admin | grep 'id="start-btn"'
 ```
 
-The public reverse proxy on port 80 must then forward `/`, `/api/`, `/admin`, `/vendor`, and `/ws` to `127.0.0.1:8080`. The `/ws` location must preserve the WebSocket `Upgrade` and `Connection` headers. If port 80 is not needed by another service, remove `HOST_PORT` or set it back to `80` instead.
+The public reverse proxy on port 80 must then forward `/`, `/api/`, `/admin`, `/vendor`, and `/ws` to `127.0.0.1:8080`. The `/ws` location must preserve the WebSocket `Upgrade` and `Connection` headers.
 
 ## GitHub Actions
 
