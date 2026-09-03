@@ -18,7 +18,7 @@ export class EventHandler {
 
   handleAdminMessage(connId: string, message: AdminMessage): void {
     switch (message.type) {
-      case 'admin_start_game': this.handleAdminStartGame(message); break;
+      case 'admin_start_game': this.handleAdminStartGame(message, connId); break;
       case 'admin_end_game': this.handleAdminEndGame(); break;
     }
   }
@@ -63,12 +63,24 @@ export class EventHandler {
     if (this.coordinator.getTopPlayers().length >= 10) this.finishGame();
   }
 
-  private handleAdminStartGame(message: { mapId: string; adminToken: string }): void {
-    if (message.adminToken !== ADMIN_TOKEN) return;
-    const { instanceId, tasks } = this.coordinator.startGame(message.mapId);
-    this.socketManager.broadcastToAdmins({ type: 'game_started', instanceId });
-    for (const player of this.coordinator.getLobby()) {
-      this.socketManager.sendToClient(player.playerId, { type: 'game_start', instanceId, tasks: tasks.map((t) => ({ id: t.id, type: t.type, cropType: t.cropType, targetAmount: t.targetAmount, currentAmount: t.currentAmount, timeLimit: t.timeLimit, scoreReward: t.scoreReward, description: t.description })) });
+  private handleAdminStartGame(message: { mapId: string; adminToken: string }, connId: string): void {
+    if (message.adminToken !== ADMIN_TOKEN) {
+      this.socketManager.sendToClient(connId, { type: 'error', message: 'Admin authorization failed.' });
+      return;
+    }
+    try {
+      const { instanceId, tasks } = this.coordinator.startGame(message.mapId);
+      this.socketManager.broadcastToAdmins({ type: 'game_started', instanceId });
+      for (const player of this.coordinator.getLobby()) {
+        this.socketManager.sendToClient(player.playerId, {
+          type: 'game_start',
+          instanceId,
+          mapId: message.mapId,
+          tasks: tasks.map((t) => ({ id: t.id, type: t.type, cropType: t.cropType, targetAmount: t.targetAmount, currentAmount: t.currentAmount, timeLimit: t.timeLimit, scoreReward: t.scoreReward, description: t.description }))
+        });
+      }
+    } catch (error: any) {
+      this.socketManager.sendToClient(connId, { type: 'error', message: error.message ?? 'Failed to start game.' });
     }
   }
 

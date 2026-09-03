@@ -54,46 +54,46 @@ export class FarmQuestApi {
   async registerPlayer(email: string, displayName?: string): Promise<PlayerSession> {
     const normalizedEmail = email.trim().toLowerCase();
     const name = displayName?.trim() || undefined;
-    const known = this.getAccounts().find((account) => account.email === normalizedEmail);
     try {
-      const response = await this.post<{ playerId: string; sessionId: string }>('/players/register', {
+      const response = await this.post<{ playerId: string; sessionId: string; displayName?: string }>('/players/register', {
         email: normalizedEmail,
         displayName: name,
       });
-      const session = this.toSession(response, normalizedEmail, name);
-      this.rememberAccount(normalizedEmail, name ?? 'Player', session.playerId);
+      const session = this.toSession(response, normalizedEmail);
+      this.rememberAccount(normalizedEmail, session.displayName ?? 'Player', session.playerId);
       return session;
-    } catch {
-      const session = this.localSession(normalizedEmail, name, known?.playerId);
-      this.rememberAccount(normalizedEmail, name ?? 'Player', session.playerId);
+    } catch (error) {
+      // Fallback to local session for development if API is down
+      const known = this.getAccounts().find((account) => account.email === normalizedEmail);
+      const session = this.localSession(normalizedEmail, name || known?.displayName, known?.playerId);
+      this.rememberAccount(normalizedEmail, session.displayName ?? 'Player', session.playerId);
       return session;
     }
   }
 
   async loginPlayer(email: string): Promise<PlayerSession> {
     const normalizedEmail = email.trim().toLowerCase();
-    const known = this.getAccounts().find((account) => account.email === normalizedEmail);
-    if (!known) {
-      try {
-        const response = await fetch(`${API_BASE}/players/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: normalizedEmail }),
-        });
-        if (response.status === 404 || response.status === 400) {
-          throw new AccountNotFoundError();
-        }
-        if (!response.ok) throw new AccountNotFoundError();
-        const payload = await response.json() as { playerId: string; sessionId: string; displayName?: string };
-        this.rememberAccount(normalizedEmail, payload.displayName ?? 'Player', payload.playerId);
-        return this.toSession(payload, normalizedEmail, payload.displayName);
-      } catch (error) {
-        if (error instanceof AccountNotFoundError) throw error;
-        throw new AccountNotFoundError();
+    try {
+      const response = await fetch(`${API_BASE}/players/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail }),
+      });
+      if (!response.ok) {
+        if (response.status === 404 || response.status === 400) throw new AccountNotFoundError();
+        throw new Error('Login failed');
       }
+      const payload = await response.json() as { playerId: string; sessionId: string; displayName?: string };
+      const session = this.toSession(payload, normalizedEmail);
+      this.rememberAccount(normalizedEmail, session.displayName ?? 'Player', session.playerId);
+      return session;
+    } catch (error) {
+      if (error instanceof AccountNotFoundError) throw error;
+      // Fallback to local session for development
+      const known = this.getAccounts().find((account) => account.email === normalizedEmail);
+      if (!known) throw new AccountNotFoundError();
+      return this.localSession(normalizedEmail, known.displayName, known.playerId);
     }
-
-    return this.registerPlayer(normalizedEmail, known.displayName);
   }
 
   async startNewSession(playerId: string, email: string, displayName?: string): Promise<PlayerSession> {
@@ -131,14 +131,12 @@ export class FarmQuestApi {
   }
 
   private toSession(
-    response: { playerId: string; sessionId: string },
+    response: { playerId: string; sessionId: string; displayName?: string },
     email: string,
-    displayName?: string,
   ): PlayerSession {
     return {
       ...response,
       email,
-      displayName,
       currentLevel: 1,
       completedLevels: [],
       totalScore: 0,

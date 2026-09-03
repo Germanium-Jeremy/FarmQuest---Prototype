@@ -6,7 +6,7 @@ const router = Router();
 
 router.get('/', (_req, res) => {
   try {
-    const htmlPath = resolve(import.meta.dirname ?? '.', '../../src/admin/admin.html');
+    const htmlPath = resolve(import.meta.dirname ?? '.', '../../public/admin/admin.html');
     const html = readFileSync(htmlPath, 'utf-8');
     res.type('html').send(html);
   } catch {
@@ -17,7 +17,7 @@ router.get('/', (_req, res) => {
       <body style="background:#0a0a1a;color:white;font-family:monospace;display:flex;justify-content:center;align-items:center;height:100vh;">
         <div style="text-align:center;">
           <h1 style="color:#00ff88;">🌾 FarmQuest Admin</h1>
-          <p style="color:#888;margin-top:16px;">Admin dashboard not available. Build the client first.</p>
+          <p style="color:#888;margin-top:16px;">Admin dashboard not available. Check server logs for path errors.</p>
         </div>
       </body>
       </html>

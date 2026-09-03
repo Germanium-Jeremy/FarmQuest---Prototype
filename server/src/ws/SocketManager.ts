@@ -32,8 +32,15 @@ export class SocketManager {
       const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
       const sessionId = url.searchParams.get('sessionId');
       const isAdmin = url.searchParams.get('admin') === 'true';
+      const adminToken = url.searchParams.get('adminToken');
       if (!sessionId && !isAdmin) { ws.close(4001, 'Session ID required'); return; }
-      if (!isAdmin && sessionId) {
+      if (isAdmin) {
+        if (adminToken !== process.env.ADMIN_TOKEN) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Admin authorization failed.' }));
+          ws.close(4003, 'Unauthorized');
+          return;
+        }
+      } else if (sessionId) {
         const session = getSession(sessionId);
         if (!session) { ws.close(4002, 'Invalid session'); return; }
       }

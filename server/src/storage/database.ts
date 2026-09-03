@@ -24,7 +24,13 @@ db.exec(`
 
 export function upsertPlayer(email: string, displayName?: string): PlayerRow {
   const existing = db.prepare('SELECT * FROM players WHERE email = ?').get(email) as PlayerRow | undefined;
-  if (existing) return existing;
+  if (existing) {
+    if (displayName && (!existing.display_name || existing.display_name.trim() === '')) {
+      db.prepare('UPDATE players SET display_name = ? WHERE id = ?').run(displayName, existing.id);
+      return { ...existing, display_name: displayName };
+    }
+    return existing;
+  }
   const player: PlayerRow = { id: randomUUID(), email, display_name: displayName || null, created_at: new Date().toISOString() };
   db.prepare('INSERT INTO players (id, email, display_name, created_at) VALUES (?, ?, ?, ?)').run(player.id, player.email, player.display_name, player.created_at);
   return player;

@@ -44,6 +44,9 @@ export class GameCoordinator {
   }
 
   startGame(mapId: string): { instanceId: string; tasks: GameTaskData[] } {
+    if (this.lobby.size === 0) {
+      throw new Error('No players in the lobby.');
+    }
     this.status = 'IN_PLAY';
     this.currentInstanceId = randomUUID();
     this.completions = [];

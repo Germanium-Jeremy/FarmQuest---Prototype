@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FarmQuest Admin Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0a0a1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Login Gate ─────────────────────────────── */
+    #login-section {
+      position: fixed;
+      inset: 0;
+      background: #0a0a1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .login-card {
+      background: #12122a;
+      border: 2px solid #333;
+      border-radius: 16px;
+      padding: 48px 40px;
+      width: 440px;
+      text-align: center;
+    }
+
+    .login-card h1 { color: #00ff88; font-size: 42px; margin-bottom: 8px; }
+    .login-card p  { color: #888; font-size: 16px; margin-bottom: 28px; }
+    .login-card input {
+      width: 100%; padding: 16px; border-radius: 10px;
+      border: 1px solid #444; background: #0d0d1a; color: white;
+      font-size: 20px; margin-bottom: 18px; text-align: center;
+      font-family: 'Courier New', monospace;
+    }
+    .login-card input:focus { outline: none; border-color: #00ff88; }
+    .login-card input::placeholder { color: #555; }
+    .login-card button {
+      width: 100%; padding: 16px; border: none; border-radius: 10px;
+      background: #00ff88; color: #0a0a1a; font-size: 22px;
+      font-weight: bold; cursor: pointer; font-family: 'Courier New', monospace;
+      transition: background 0.2s;
+    }
+    .login-card button:hover { background: #00cc6a; }
+    #auth-error { color: #ff4444; font-size: 14px; margin-bottom: 12px; min-height: 20px; }
+
+    /* ── Dashboard ──────────────────────────────── */
+    #dashboard {
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto 1fr auto auto;
+      height: 100vh;
+      gap: 16px;
+      padding: 24px;
+    }
+
+    .header {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 12px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+    }
+    .header h1 { color: #00ff88; font-size: 52px; }
+    .header p  { color: #888; font-size: 20px; }
+
+    .status-pill {
+      display: inline-block;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 20px;
+      font-weight: bold;
+      letter-spacing: 2px;
+    }
+    .status-pill.waiting    { background: #333; color: #aaa; }
+    .status-pill.in-play    { background: #003322; color: #00ff88; border: 1px solid #00ff88; }
+    .status-pill.finished   { background: #332200; color: #ffe36d; border: 1px solid #ffe36d; }
+
+    /* ── Panels ─────────────────────────────────── */
+    .panel {
+      background: #12122a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel h2 { color: #00ff88; font-size: 26px; margin-bottom: 12px; }
+
+    .player-list { flex: 1; overflow-y: auto; }
+    .player-list::-webkit-scrollbar { width: 6px; }
+    .player-list::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    .empty-msg { color: #555; text-align: center; padding: 40px; font-size: 18px; }
+
+    .player-entry {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #1a1a2e;
+      font-size: 22px;
+      animation: fadeSlideIn 0.3s ease;
+    }
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .player-entry .icon { font-size: 28px; }
+    .player-entry .name { flex: 1; color: #fff; font-weight: bold; }
+    .player-entry .map  { color: #888; font-size: 16px; }
+
+    .leaderboard-entry {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-bottom: 1px solid #1a1a2e;
+      font-size: 24px;
+      animation: fadeSlideIn 0.3s ease;
+    }
+    .leaderboard-entry .rank { color: #00ff88; font-weight: bold; min-width: 60px; }
+    .leaderboard-entry .name { flex: 1; color: #fff; }
+    .leaderboard-entry .score { color: #ffe36d; font-weight: bold; white-space: nowrap; }
+    .leaderboard-entry.top3 .rank { color: #ffd700; font-size: 28px; }
+
+    .panel-footer {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid #222;
+      color: #888;
+      font-size: 18px;
+      text-align: center;
+    }
+    .panel-footer .highlight { color: #00ff88; font-weight: bold; }
+
+    /* ── Controls ───────────────────────────────── */
+    .controls {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      padding: 12px 0;
+    }
+
+    .map-select select {
+      padding: 14px 20px;
+      font-size: 22px;
+      background: #1a1a2e;
+      color: white;
+      border: 1px solid #444;
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      cursor: pointer;
+    }
+    .map-select select:focus { outline: none; border-color: #00ff88; }
+
+    .controls button {
+      padding: 16px 44px;
+      font-size: 28px;
+      font-weight: bold;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      transition: all 0.2s;
+    }
+    #start-btn { background: #00ff88; color: #0a0a1a; }
+    #start-btn:hover:not(:disabled) { background: #00cc6a; transform: scale(1.03); }
+    #end-btn { background: #ff4444; color: white; }
+    #end-btn:hover:not(:disabled) { background: #cc2222; transform: scale(1.03); }
+    #start-btn:disabled, #end-btn:disabled {
+      background: #222; color: #555; cursor: not-allowed; transform: none;
+    }
+
+    /* ── Status Bar ─────────────────────────────── */
+    .status-bar {
+      grid-column: 1 / -1;
+      text-align: center;
+      font-size: 20px;
+      color: #888;
+      padding: 8px 0;
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+    }
+    .status-bar .val { color: #00ff88; font-weight: bold; }
+    .status-bar .count { color: #ffe36d; font-weight: bold; }
+
+    /* ── Connection indicator ────────────────────── */
+    .conn-dot {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    .conn-dot.connected    { background: #00ff88; box-shadow: 0 0 6px #00ff88; }
+    .conn-dot.disconnected { background: #ff4444; box-shadow: 0 0 6px #ff4444; }
+    .conn-dot.connecting   { background: #ffe36d; animation: pulse 1s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Login Gate ──────────────────────────── -->
+  <div id="login-section">
+    <div class="login-card">
+      <h1>🌾 FarmQuest</h1>
+      <p>Admin Dashboard — Enter token to continue</p>
+      <input id="admin-token" type="password" placeholder="Admin token" autofocus />
+      <div id="auth-error"></div>
+      <button id="login-btn">Open Dashboard</button>
+    </div>
+  </div>
+
+  <!-- ── Dashboard ───────────────────────────── -->
+  <div id="dashboard">
+    <div class="header">
+      <h1>🌾 FARMQUEST</h1>
+      <p>EVENT DASHBOARD</p>
+      <div id="status-pill" class="status-pill waiting">WAITING</div>
+    </div>
+
+    <div class="panel">
+      <h2>👥 Entering Players</h2>
+      <div class="player-list" id="player-list">
+        <div class="empty-msg">No players yet…</div>
+      </div>
+      <div class="panel-footer">
+        Total: <span class="highlight" id="player-count">0</span> players
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>🏆 Leaderboard</h2>
+      <div class="player-list" id="leaderboard">
+        <div class="empty-msg">No results yet…</div>
+      </div>
+      <div class="panel-footer">
+        Time: <span class="highlight" id="elapsed-time">00:00</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="map-select">
+        <select id="map-select">
+          <option value="rwanda">🌧️ Rwanda — Wet Land</option>
+          <option value="sudan">🏜️ Sudan — Desert</option>
+          <option value="seychelles">🌊 Seychelles — Water Land</option>
+        </select>
+      </div>
+      <button id="start-btn">🎮 START GAME</button>
+      <button id="end-btn" disabled>⏹️ END GAME</button>
+    </div>
+
+    <div class="status-bar">
+      <span><span class="conn-dot connecting" id="conn-dot"></span> WebSocket: <span class="val" id="conn-label">Connecting…</span></span>
+      <span>Map: <span class="val" id="map-label">—</span></span>
+      <span>Status: <span class="val" id="status-label">WAITING</span></span>
+    </div>
+  </div>
+
+  <script>
+    /* ── State ─────────────────────────────── */
+    let adminToken = '';
+    let ws = null;
+    let players = [];
+    let gameStatus = 'WAITING';
+    let gameStartTime = null;
+    let timerInterval = null;
+
+    /* ── DOM refs ──────────────────────────── */
+    const $ = (id) => document.getElementById(id);
+    const loginSection   = $('login-section');
+    const dashboard      = $('dashboard');
+    const tokenInput     = $('admin-token');
+    const authError      = $('auth-error');
+    const loginBtn       = $('login-btn');
+    const startBtn       = $('start-btn');
+    const endBtn         = $('end-btn');
+    const mapSelect      = $('map-select');
+    const statusPill     = $('status-pill');
+    const playerListEl   = $('player-list');
+    const leaderboardEl  = $('leaderboard');
+    const playerCountEl  = $('player-count');
+    const elapsedEl      = $('elapsed-time');
+    const mapLabelEl     = $('map-label');
+    const statusLabelEl  = $('status-label');
+    const connDot        = $('conn-dot');
+    const connLabel      = $('conn-label');
+
+    /* ── Login ─────────────────────────────── */
+    loginBtn.addEventListener('click', doLogin);
+    tokenInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+
+    function doLogin() {
+      adminToken = tokenInput.value.trim();
+      if (!adminToken) {
+        authError.textContent = 'Please enter a token.';
+        return;
+      }
+      authError.textContent = '';
+      loginSection.style.display = 'none';
+      dashboard.style.display = 'grid';
+      connectWS();
+    }
+
+    /* ── WebSocket ─────────────────────────── */
+    function connectWS() {
+      setConnectionStatus('connecting');
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(protocol + '//' + location.host + '/ws?admin=true');
+
+      ws.onopen = () => {
+        setConnectionStatus('connected');
+        console.log('[Admin] WebSocket connected');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          handleMessage(msg);
+        } catch (e) {
+          console.error('[Admin] Failed to parse message:', e);
+        }
+      };
+
+      ws.onclose = (event) => {
+        setConnectionStatus('disconnected');
+        console.log('[Admin] WebSocket closed:', event.code, event.reason);
+        // Auto-reconnect after 3 seconds
+        setTimeout(connectWS, 3000);
+      };
+
+      ws.onerror = () => {
+        setConnectionStatus('disconnected');
+      };
+    }
+
+    function setConnectionStatus(state) {
+      connDot.className = 'conn-dot ' + state;
+      const labels = { connected: 'Connected', disconnected: 'Disconnected', connecting: 'Connecting…' };
+      connLabel.textContent = labels[state] || state;
+    }
+
+    /* ── Message Handler ────────────────────── */
+    function handleMessage(msg) {
+      switch (msg.type) {
+        case 'lobby_update':
+          players = msg.players || [];
+          playerCountEl.textContent = msg.count || 0;
+          renderPlayers();
+          break;
+
+        case 'player_joined':
+          // lobby_update handles the full list; this is just for log
+          console.log('[Admin] Player joined:', msg.displayName);
+          break;
+
+        case 'player_left':
+          console.log('[Admin] Player left:', msg.displayName);
+          break;
+
+        case 'game_started':
+          gameStatus = 'IN_PLAY';
+          gameStartTime = Date.now();
+          updateStatusUI();
+          startBtn.disabled = true;
+          endBtn.disabled = false;
+          startTimer();
+          console.log('[Admin] Game started, instance:', msg.instanceId);
+          break;
+
+        case 'leaderboard_update':
+          renderLeaderboard(msg.entries || []);
+          break;
+
+        case 'game_finished':
+          gameStatus = 'FINISHED';
+          gameStartTime = null;
+          updateStatusUI();
+          startBtn.disabled = false;
+          endBtn.disabled = true;
+          stopTimer();
+          renderLeaderboard(msg.leaderboard || []);
+          console.log('[Admin] Game finished');
+          break;
+
+        default:
+          console.log('[Admin] Unknown message type:', msg.type);
+      }
+    }
+
+    /* ── Timer ──────────────────────────────── */
+    function startTimer() {
+      stopTimer();
+      timerInterval = setInterval(updateElapsed, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      elapsedEl.textContent = '00:00';
+    }
+
+    function updateElapsed() {
+      if (!gameStartTime) return;
+      const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+      const min = Math.floor(elapsed / 60);
+      const sec = elapsed % 60;
+      elapsedEl.textContent = String(min).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+    }
+
+    /* ── UI Updates ─────────────────────────── */
+    function updateStatusUI() {
+      const labels = { WAITING: 'WAITING', IN_PLAY: 'IN PLAY', FINISHED: 'FINISHED' };
+      statusLabelEl.textContent = labels[gameStatus] || gameStatus;
+      statusPill.textContent = labels[gameStatus] || gameStatus;
+      statusPill.className = 'status-pill ' + gameStatus.toLowerCase().replace('_', '-');
+      mapLabelEl.textContent = mapSelect.options[mapSelect.selectedIndex].text;
+    }
+
+    function renderPlayers() {
+      if (!players.length) {
+        playerListEl.innerHTML = '<div class="empty-msg">No players yet…</div>';
+        return;
+      }
+      const charIcons = { male: '👨', female: '👩', robot: '🤖' };
+      const mapIcons = { rwanda: '🌧️', sudan: '🏜️', seychelles: '🌊' };
+      playerListEl.innerHTML = players.map((p) =>
+        '<div class="player-entry">' +
+          '<span class="icon">' + (charIcons[p.characterType] || '👤') + '</span>' +
+          '<span class="name">' + escapeHtml(p.displayName) + '</span>' +
+          '<span class="map">' + (mapIcons[p.mapId] || '') + ' ' + escapeHtml(p.mapId) + '</span>' +
+        '</div>'
+      ).join('');
+      // Auto-scroll to bottom
+      playerListEl.scrollTop = playerListEl.scrollHeight;
+    }
+
+    function renderLeaderboard(entries) {
+      if (!entries.length) {
+        leaderboardEl.innerHTML = '<div class="empty-msg">No results yet…</div>';
+        return;
+      }
+      const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
+      leaderboardEl.innerHTML = entries.slice(0, 10).map((e) => {
+        const medal = medals[e.rank] || '';
+        const time = formatTime(e.completionTime);
+        const reward = e.rewardType ? ' — ' + escapeHtml(e.rewardType) : '';
+        return '<div class="leaderboard-entry' + (e.rank <= 3 ? ' top3' : '') + '">' +
+          '<span class="rank">' + medal + ' ' + e.rank + '.</span>' +
+          '<span class="name">' + escapeHtml(e.displayName) + '</span>' +
+          '<span class="score">' + e.score + ' pts (' + time + ')' + reward + '</span>' +
+        '</div>';
+      }).join('');
+    }
+
+    function formatTime(seconds) {
+      if (!seconds && seconds !== 0) return '--:--';
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      return m + ':' + String(s).padStart(2, '0');
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    /* ── Controls ───────────────────────────── */
+    startBtn.addEventListener('click', startGame);
+    endBtn.addEventListener('click', endGame);
+
+    function startGame() {
+      const mapId = mapSelect.value;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'admin_start_game',
+          mapId: mapId,
+          adminToken: adminToken
+        }));
+        console.log('[Admin] Sent start game for map:', mapId);
+      } else {
+        alert('WebSocket not connected. Please wait for reconnection.');
+      }
+    }
+
+    function endGame() {
+      if (!confirm('End the current game?')) return;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'admin_end_game',
+          adminToken: adminToken
+        }));
+        console.log('[Admin] Sent end game');
+      }
+    }
+
+    // Update map label when selection changes
+    mapSelect.addEventListener('change', updateStatusUI);
+
+    /* ── Initial UI state ───────────────────── */
+    updateStatusUI();
+  </script>
+</body>
+</html>

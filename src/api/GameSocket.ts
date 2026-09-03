@@ -37,32 +37,36 @@ export class GameSocket {
   private handlers = new Map<string, (data: unknown) => void>();
   private connected = false;
 
-  connect(sessionId: string): void {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}/ws?sessionId=${sessionId}`;
-    this.ws = new WebSocket(url);
+  async connect(sessionId: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const url = `${protocol}//${window.location.host}/ws?sessionId=${sessionId}`;
+      this.ws = new WebSocket(url);
 
-    this.ws.onopen = () => {
-      this.connected = true;
-    };
+      this.ws.onopen = () => {
+        this.connected = true;
+        resolve();
+      };
 
-    this.ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data) as ServerMessage;
-        const handler = this.handlers.get(message.type);
-        handler?.(message);
-      } catch {
-        // ignore malformed messages
-      }
-    };
+      this.ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data) as ServerMessage;
+          const handler = this.handlers.get(message.type);
+          handler?.(message);
+        } catch {
+          // ignore malformed messages
+        }
+      };
 
-    this.ws.onclose = () => {
-      this.connected = false;
-    };
+      this.ws.onclose = () => {
+        this.connected = false;
+      };
 
-    this.ws.onerror = () => {
-      this.connected = false;
-    };
+      this.ws.onerror = (error) => {
+        this.connected = false;
+        reject(error);
+      };
+    });
   }
 
   on(type: string, handler: (data: unknown) => void): void {

@@ -34,7 +34,7 @@ export type ClientMessage =
 
 export type ServerMessage =
   | { type: 'lobby_update'; players: LobbyPlayer[]; count: number }
-  | { type: 'game_start'; instanceId: string; tasks: GameTaskData[] }
+  | { type: 'game_start'; instanceId: string; mapId: string; tasks: GameTaskData[] }
   | { type: 'player_completed'; displayName: string; rank: number; score: number }
   | { type: 'game_finished'; leaderboard: LeaderboardEntry[]; yourRank: number }
   | { type: 'error'; message: string };

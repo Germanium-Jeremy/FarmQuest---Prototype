@@ -122,8 +122,8 @@ export class Game {
     });
 
     this.socket.on('game_start', (data) => {
-      const msg = data as { instanceId: string; tasks: SocketGameTask[] };
-      this.startGameFromServer(msg.tasks);
+      const msg = data as { instanceId: string; mapId: string; tasks: SocketGameTask[] };
+      this.startGameFromServer(msg);
     });
 
     this.socket.on('game_finished', (data) => {
@@ -167,7 +167,7 @@ export class Game {
       return;
     }
     try {
-      this.session = await this.api.registerPlayer(email);
+      this.session = await this.api.loginPlayer(email);
       this.goToCharacterSelect();
     } catch (error) {
       console.error(error);
@@ -223,24 +223,23 @@ export class Game {
     );
   }
 
-  private goToLobby(): void {
+  private async goToLobby(): Promise<void> {
     this.state = GameState.LOBBY;
     if (this.session) {
-      this.socket.connect(this.session.sessionId);
-      setTimeout(() => {
-        if (this.socket.isConnected()) {
-          this.socket.joinLobby(
-            this.session!.playerId,
-            this.session!.displayName ?? 'Player',
-            this.selectedCharacterType,
-            this.selectedMapId,
-          );
-        } else {
-          this.startLocalGame();
-        }
-      }, 500);
+      try {
+        await this.socket.connect(this.session.sessionId);
+        this.socket.joinLobby(
+          this.session!.playerId,
+          this.session!.displayName ?? 'Player',
+          this.selectedCharacterType,
+          this.selectedMapId,
+        );
+      } catch (error) {
+        console.error('WebSocket connection failed:', error);
+        this.startLocalGame();
+      }
     } else {
-      setTimeout(() => this.startLocalGame(), 500);
+      this.startLocalGame();
     }
     this.hud.showLobby(
       1,
@@ -255,8 +254,8 @@ export class Game {
     this.startGameFromServer(tasks as any);
   }
 
-  private startGameFromServer(socketTasks: SocketGameTask[]): void {
-    const tasks: GameTask[] = socketTasks.map((t) => ({
+  private startGameFromServer(socketTasks: { instanceId: string; mapId: string; tasks: SocketGameTask[] }): void {
+    const tasks: GameTask[] = socketTasks.tasks.map((t) => ({
       id: t.id,
       type: t.type as TaskType,
       cropType: t.cropType as CropType | undefined,
@@ -267,7 +266,7 @@ export class Game {
       description: t.description,
     }));
 
-    this.applyMapTheme(this.selectedMapId);
+    this.applyMapTheme(socketTasks.mapId);
     this.state = GameState.PLAYING;
     this.scoreManager.reset();
     this.challengeManager.reset();
