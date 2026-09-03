@@ -8,8 +8,8 @@ export class World {
   public collision: CollisionManager;
   private theme: MapTheme;
 
-  constructor(private themeInput: MapTheme = MAP_THEMES.rwanda) {
-    this.theme = themeInput;
+  constructor(themeInput: MapTheme | string = MAP_THEMES.rwanda) {
+    this.theme = typeof themeInput === 'string' ? MAP_THEMES[themeInput as any] : themeInput;
     this.group = new THREE.Group();
     this.collision = new CollisionManager(this.group);
     this.buildTerrain();

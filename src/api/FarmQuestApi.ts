@@ -34,6 +34,15 @@ interface StoredAccount {
 }
 
 export class FarmQuestApi {
+  private getAccounts(): StoredAccount[] {
+    try {
+      const stored = localStorage.getItem(ACCOUNTS_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  }
+
   async registerPlayer(email: string, displayName?: string): Promise<PlayerSession> {
     const normalizedEmail = email.trim().toLowerCase();
     const name = displayName?.trim() || undefined;

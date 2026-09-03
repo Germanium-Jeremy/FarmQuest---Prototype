@@ -46,7 +46,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => { con
 
 const server = createServer(app);
 socketManager.attachToServer(server);
-server.listen(port, '0.0.0.0', () => { console.info(`FarmQuest server listening on http://0.0.0.0:${port}`); });
+server.listen(port, () => { console.info(`FarmQuest server listening on http://0.0.0.0:${port}`); });
 
 function rateLimit(req: Request, res: Response, next: NextFunction): void {
   if (!req.path.startsWith('/api/players') && !req.path.startsWith('/api/game') && !req.path.startsWith('/api/vendor') && !req.path.startsWith('/api/admin')) { next(); return; }

@@ -92,7 +92,7 @@ export class Game {
     this.setupLighting();
 
     // Create default world and player
-    this.world = new World('rwanda');
+    this.world = new World(MAP_THEMES.rwanda);
     this.npc = new NPC(new THREE.Vector3(-3, 0, 1.6), 'rwanda');
     this.player = new Player('male');
     this.spawnManager = new SpawnManager('rwanda');
