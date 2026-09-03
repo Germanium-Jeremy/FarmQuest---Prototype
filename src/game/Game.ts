@@ -100,6 +100,7 @@ export class Game {
 
     this.scene.add(this.world.group, this.npc.mesh, this.player.mesh, this.sessionGroup);
     this.hud = new HUD(uiOverlay, this.scoreManager);
+    this.playerController.attachTouchControls(uiOverlay);
 
     this.setupSocketHandlers();
     window.addEventListener('resize', () => this.onResize());

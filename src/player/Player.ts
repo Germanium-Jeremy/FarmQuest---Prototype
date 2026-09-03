@@ -39,6 +39,7 @@ export class Player {
     keys: Set<string>,
     worldBounds: { minX: number; maxX: number; minZ: number; maxZ: number },
     canMoveTo: (position: THREE.Vector3, radius: number) => boolean = () => true,
+    virtualMove = new THREE.Vector2(),
   ): void {
     const moveDir = new THREE.Vector3(0, 0, 0);
 
@@ -46,6 +47,8 @@ export class Player {
     if (keys.has('KeyS') || keys.has('ArrowDown')) moveDir.z += 1;
     if (keys.has('KeyA') || keys.has('ArrowLeft')) moveDir.x -= 1;
     if (keys.has('KeyD') || keys.has('ArrowRight')) moveDir.x += 1;
+    moveDir.x += virtualMove.x;
+    moveDir.z += virtualMove.y;
 
     const isMoving = moveDir.length() > 0;
     if (isMoving) {
