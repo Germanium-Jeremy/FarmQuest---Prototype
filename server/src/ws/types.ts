@@ -1,5 +1,6 @@
 export interface LobbyPlayer {
-  playerId: string;
+  playerId: string;       // connId (sessionId from URL) — used for WebSocket lookup
+  databaseId: string;     // original player database ID — used for DB operations
   sessionId: string;
   displayName: string;
   characterType: string;

@@ -30,30 +30,36 @@ export class EventHandler {
       this.socketManager.broadcastToAdmins({ type: 'player_left', displayName: player.displayName });
     } else if (player && this.coordinator.getStatus() === 'IN_PLAY') {
       const instanceId = this.coordinator.getCurrentInstanceId();
-      if (instanceId) updateInstancePlayerStatus(instanceId, player.playerId, 'TIMEOUT');
+      if (instanceId) updateInstancePlayerStatus(instanceId, player.databaseId, 'TIMEOUT');
     }
   }
 
   private handleJoinLobby(connId: string, message: { playerId: string; sessionId: string; displayName: string; characterType: string; mapId: string }): void {
-    const player: LobbyPlayer = { playerId: message.playerId, sessionId: message.sessionId, displayName: message.displayName || 'Player', characterType: message.characterType, mapId: message.mapId };
+    // Use connId (the sessionId from the URL) as the playerId so it matches the WebSocket connection key
+    // Store the original database playerId in databaseId for DB operations
+    const player: LobbyPlayer = { playerId: connId, databaseId: message.playerId, sessionId: connId, displayName: message.displayName || 'Player', characterType: message.characterType, mapId: message.mapId };
     this.coordinator.joinLobby(player);
     const instanceId = this.coordinator.getCurrentInstanceId();
-    if (instanceId) registerPlayerForInstance(instanceId, player.playerId, player.sessionId, player.characterType, player.mapId);
+    if (instanceId) registerPlayerForInstance(instanceId, message.playerId, connId, player.characterType, player.mapId);
     this.socketManager.broadcastToClients({ type: 'lobby_update', players: this.coordinator.getLobby(), count: this.coordinator.getLobbyCount() });
     this.socketManager.broadcastToAdmins({ type: 'player_joined', displayName: player.displayName, characterType: player.characterType, mapId: player.mapId });
     this.socketManager.broadcastToAdmins({ type: 'lobby_update', players: this.coordinator.getLobby(), count: this.coordinator.getLobbyCount() });
   }
 
   private handleGameComplete(connId: string, message: { playerId: string; score: number; completionTime: number }): void {
-    const result = this.coordinator.playerComplete(message.playerId, message.score, message.completionTime);
+    // Use connId to look up the player in the lobby (keyed by sessionId)
+    const result = this.coordinator.playerComplete(connId, message.score, message.completionTime);
     if (!result) return;
+    const lobbyPlayer = this.coordinator.getLobby().find((l) => l.playerId === connId);
     const instanceId = this.coordinator.getCurrentInstanceId();
     if (instanceId) {
-      updateInstancePlayerStatus(instanceId, message.playerId, 'COMPLETED', message.score, message.completionTime);
-      insertLeaderboardEntry(instanceId, message.playerId, result.rank, message.score, message.completionTime);
+      // Use the original database playerId for DB operations
+      const dbId = lobbyPlayer?.databaseId ?? message.playerId;
+      updateInstancePlayerStatus(instanceId, dbId, 'COMPLETED', message.score, message.completionTime);
+      insertLeaderboardEntry(instanceId, dbId, result.rank, message.score, message.completionTime);
     }
     this.socketManager.broadcastToAdmins({ type: 'leaderboard_update', entries: this.coordinator.getTopPlayers().map((p) => ({ rank: p.rank, playerId: p.playerId, displayName: this.coordinator.getLobby().find((l) => l.playerId === p.playerId)?.displayName ?? 'Unknown', score: p.score, completionTime: p.completionTime, rewardType: p.rewardType })) });
-    this.socketManager.sendToClient(message.playerId, { type: 'player_completed', displayName: result.displayName, rank: result.rank, score: message.score });
+    this.socketManager.sendToClient(connId, { type: 'player_completed', displayName: result.displayName, rank: result.rank, score: message.score });
     if (this.coordinator.getTopPlayers().length >= 10) this.finishGame();
   }
 
