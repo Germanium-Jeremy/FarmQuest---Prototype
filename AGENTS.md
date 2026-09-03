@@ -14,13 +14,13 @@ The overall gameplay loop is:
 
 The prototype should prioritize:
 
-* Fast gameplay
-* Clear objectives
-* Replayability
-* Visual quality
-* Simple controls
-* Educational agriculture content
-* Reliable browser performance
+- Fast gameplay
+- Clear objectives
+- Replayability
+- Visual quality
+- Simple controls
+- Educational agriculture content
+- Reliable browser performance
 
 ---
 
@@ -28,13 +28,13 @@ The prototype should prioritize:
 
 Recommended:
 
-* TypeScript
-* Vite
-* Three.js
-* HTML/CSS
-* GLB/GLTF assets
-* Three.js GLTFLoader
-* Three.js animation system when animated models exist
+- TypeScript
+- Vite
+- Three.js
+- HTML/CSS
+- GLB/GLTF assets
+- Three.js GLTFLoader
+- Three.js animation system when animated models exist
 
 React may be added later only if it does not complicate the prototype.
 
@@ -50,15 +50,15 @@ The game world must remain fully 3D.
 
 Target a Township-like stylized farming world:
 
-* Low-poly models
-* Elevated 2.5D-style camera
-* Slight downward viewing angle
-* Orthographic camera preferred initially
-* Bright environment
-* Clear roads and landmarks
-* Simple shadows
-* Readable crops and interaction objects
-* Colorful agricultural environment
+- Low-poly models
+- Elevated 2.5D-style camera
+- Slight downward viewing angle
+- Orthographic camera preferred initially
+- Bright environment
+- Clear roads and landmarks
+- Simple shadows
+- Readable crops and interaction objects
+- Colorful agricultural environment
 
 Example layout:
 
@@ -160,15 +160,15 @@ Suggested task types:
 
 ```ts
 enum TaskType {
-    COLLECT_SEED,
-    COLLECT_MULTIPLE_SEEDS,
-    PLANT_SEED,
-    PLANT_MULTIPLE_SEEDS,
-    FIND_WATER,
-    WATER_CROP,
-    WATER_CROP_MULTIPLE,
-    HARVEST_CROP,
-    HARVEST_MULTIPLE
+  COLLECT_SEED,
+  COLLECT_MULTIPLE_SEEDS,
+  PLANT_SEED,
+  PLANT_MULTIPLE_SEEDS,
+  FIND_WATER,
+  WATER_CROP,
+  WATER_CROP_MULTIPLE,
+  HARVEST_CROP,
+  HARVEST_MULTIPLE,
 }
 ```
 
@@ -178,18 +178,18 @@ Example:
 
 ```ts
 interface GameTask {
-    id: string;
-    type: TaskType;
+  id: string;
+  type: TaskType;
 
-    cropType?: CropType;
+  cropType?: CropType;
 
-    targetAmount: number;
-    currentAmount: number;
+  targetAmount: number;
+  currentAmount: number;
 
-    timeLimit: number;
-    scoreReward: number;
+  timeLimit: number;
+  scoreReward: number;
 
-    description: string;
+  description: string;
 }
 ```
 
@@ -220,9 +220,9 @@ Minimum required crops:
 
 ```ts
 enum CropType {
-    MAIZE,
-    CASSAVA,
-    COFFEE
+  MAIZE,
+  CASSAVA,
+  COFFEE,
 }
 ```
 
@@ -236,25 +236,25 @@ For example:
 
 Use:
 
-* Yellow or golden seed/corn icon
-* Small maize plant model
-* Tall green crop when harvestable
+- Yellow or golden seed/corn icon
+- Small maize plant model
+- Tall green crop when harvestable
 
 ### Cassava
 
 Use:
 
-* Brown/tan seed or cutting indicator
-* Broad green cassava leaves
-* Root crop representation when harvested
+- Brown/tan seed or cutting indicator
+- Broad green cassava leaves
+- Root crop representation when harvested
 
 ### Coffee
 
 Use:
 
-* Coffee bean collectible
-* Coffee plant
-* Red coffee cherries or beans
+- Coffee bean collectible
+- Coffee plant
+- Red coffee cherries or beans
 
 Coffee may still act as a rarer or higher-value crop in some tasks.
 
@@ -379,14 +379,7 @@ At the start of each run:
 Example:
 
 ```ts
-const seedSpawnPoints = [
-    spawnA,
-    spawnB,
-    spawnC,
-    spawnD,
-    spawnE,
-    spawnF
-];
+const seedSpawnPoints = [spawnA, spawnB, spawnC, spawnD, spawnE, spawnF];
 ```
 
 Shuffle the spawn points:
@@ -403,11 +396,11 @@ Instead use predefined valid spawn zones or spawn points.
 
 This avoids:
 
-* Seeds inside houses
-* Seeds inside trees
-* Water inside buildings
-* Objects outside the map
-* Impossible objectives
+- Seeds inside houses
+- Seeds inside trees
+- Water inside buildings
+- Objects outside the map
+- Impossible objectives
 
 ---
 
@@ -417,11 +410,11 @@ Water should also change location between runs.
 
 Possible water sources:
 
-* Well
-* Water tank
-* Pump
-* Small river
-* Water barrel
+- Well
+- Water tank
+- Pump
+- Small river
+- Water barrel
 
 The game may contain several potential water locations.
 
@@ -515,10 +508,10 @@ If a fully animated GLB character is unavailable, animate the placeholder charac
 
 When the player moves:
 
-* Left arm swings forward while right arm swings backward.
-* Right arm swings forward while left arm swings backward.
-* Left leg swings opposite the left arm.
-* Right leg swings opposite the right arm.
+- Left arm swings forward while right arm swings backward.
+- Right arm swings forward while left arm swings backward.
+- Left leg swings opposite the left arm.
+- Right leg swings opposite the right arm.
 
 Example concept:
 
@@ -536,9 +529,9 @@ The player should visually appear to walk/run instead of sliding across the grou
 
 When the player stops:
 
-* Arms return toward neutral.
-* Legs return toward neutral.
-* Optional subtle idle movement may occur.
+- Arms return toward neutral.
+- Legs return toward neutral.
+- Optional subtle idle movement may occur.
 
 Do not make the animation exaggerated enough to look broken.
 
@@ -569,11 +562,11 @@ If a correctly rigged animated GLB exists, use Three.js AnimationMixer.
 
 Preferred animations:
 
-* Idle
-* Walk
-* Run
-* Interaction
-* Harvest if available
+- Idle
+- Walk
+- Run
+- Interaction
+- Harvest if available
 
 If rigging is not ready:
 
@@ -595,13 +588,13 @@ E / Space → Interact
 
 Player should have:
 
-* Keyboard movement
-* World boundaries
-* Basic obstacle collision
-* Facing direction
-* Interaction radius
-* Running/walking animation
-* Camera follow
+- Keyboard movement
+- World boundaries
+- Basic obstacle collision
+- Facing direction
+- Interaction radius
+- Running/walking animation
+- Camera follow
 
 Keep controls responsive and simple.
 
@@ -615,7 +608,7 @@ Example:
 
 ```ts
 interface Interactable {
-    interact(player: Player): void;
+  interact(player: Player): void;
 }
 ```
 
@@ -667,9 +660,9 @@ Seed entities should contain something similar to:
 
 ```ts
 class Seed {
-    cropType: CropType;
-    value: number;
-    collected: boolean;
+  cropType: CropType;
+  value: number;
+  collected: boolean;
 }
 ```
 
@@ -711,10 +704,10 @@ Example prompt:
 
 After planting:
 
-* Seed disappears from inventory.
-* Small crop appears.
-* Task progress updates.
-* Plant becomes available for watering tasks.
+- Seed disappears from inventory.
+- Small crop appears.
+- Task progress updates.
+- Plant becomes available for watering tasks.
 
 Do not create a complex inventory system.
 
@@ -742,11 +735,11 @@ A crop should visually change slightly when watered.
 
 Possible feedback:
 
-* Small splash particles
-* Temporary blue particles
-* Crop becomes slightly larger
-* Soil becomes darker
-* Floating "+ Watered" text
+- Small splash particles
+- Temporary blue particles
+- Crop becomes slightly larger
+- Soil becomes darker
+- Floating "+ Watered" text
 
 Do not implement realistic crop waiting times.
 
@@ -766,10 +759,10 @@ Example prompt:
 
 Harvest should:
 
-* Update task progress
-* Add score
-* Play visual feedback
-* Remove or change crop model
+- Update task progress
+- Add score
+- Play visual feedback
+- Remove or change crop model
 
 Example:
 
@@ -806,25 +799,25 @@ Example:
 
 ```ts
 class ChallengeManager {
-    tasks: GameTask[];
-    currentTaskIndex: number;
-    timeRemaining: number;
+  tasks: GameTask[];
+  currentTaskIndex: number;
+  timeRemaining: number;
 
-    getCurrentTask(): GameTask;
+  getCurrentTask(): GameTask;
 
-    update(delta: number): void;
+  update(delta: number): void;
 
-    registerProgress(
-        taskType: TaskType,
-        cropType?: CropType,
-        amount?: number
-    ): void;
+  registerProgress(
+    taskType: TaskType,
+    cropType?: CropType,
+    amount?: number,
+  ): void;
 
-    completeCurrentTask(): void;
+  completeCurrentTask(): void;
 
-    startNextTask(): void;
+  startNextTask(): void;
 
-    failCurrentTask(): void;
+  failCurrentTask(): void;
 }
 ```
 
@@ -871,9 +864,7 @@ Some tasks may receive slightly longer timers depending on quantity.
 Example:
 
 ```ts
-timeLimit =
-    baseTime +
-    targetAmount * extraTimePerTarget;
+timeLimit = baseTime + targetAmount * extraTimePerTarget;
 ```
 
 Keep total gameplay within approximately two minutes.
@@ -1023,10 +1014,10 @@ Use simple global game states:
 
 ```ts
 enum GameState {
-    MENU,
-    PLAYING,
-    GAME_OVER,
-    COMPLETE
+  MENU,
+  PLAYING,
+  GAME_OVER,
+  COMPLETE,
 }
 ```
 
@@ -1135,14 +1126,14 @@ Example:
 
 A replay must:
 
-* Generate different tasks where possible
-* Randomize seed locations
-* Randomize water locations
-* Reset score
-* Reset timer
-* Reset crops
-* Reset collected items
-* Reset player position
+- Generate different tasks where possible
+- Randomize seed locations
+- Randomize water locations
+- Reset score
+- Reset timer
+- Reset crops
+- Reset collected items
+- Reset player position
 
 ---
 
@@ -1224,9 +1215,9 @@ Example:
 
 ```ts
 interface SpawnZone {
-    id: string;
-    positions: THREE.Vector3[];
-    allowedTypes: SpawnType[];
+  id: string;
+  positions: THREE.Vector3[];
+  allowedTypes: SpawnType[];
 }
 ```
 
@@ -1262,12 +1253,12 @@ Required objects should be discoverable.
 
 Use where helpful:
 
-* Floating crop icon
-* Glow
-* Small particles
-* Gentle bouncing
-* Billboard icon
-* Highlight circle
+- Floating crop icon
+- Glow
+- Small particles
+- Gentle bouncing
+- Billboard icon
+- Highlight circle
 
 Do not turn the game into a difficult hidden-object game.
 
@@ -1281,12 +1272,12 @@ Start with an OrthographicCamera positioned above and diagonally away from the p
 
 Camera should:
 
-* Follow player
-* Keep player visible
-* Show nearby landmarks
-* Avoid excessive empty space
-* Avoid clipping through buildings
-* Preserve the 2.5D appearance
+- Follow player
+- Keep player visible
+- Show nearby landmarks
+- Avoid excessive empty space
+- Avoid clipping through buildings
+- Preserve the 2.5D appearance
 
 The agent establishes initial values.
 
@@ -1411,14 +1402,11 @@ Example:
 
 ```ts
 class SpawnManager {
+  getRandomSeedPosition(excludedPositions?: THREE.Vector3[]): THREE.Vector3;
 
-    getRandomSeedPosition(
-        excludedPositions?: THREE.Vector3[]
-    ): THREE.Vector3;
+  chooseWaterSource(): WaterSource;
 
-    chooseWaterSource(): WaterSource;
-
-    reset(): void;
+  reset(): void;
 }
 ```
 
@@ -1520,11 +1508,11 @@ Never put secrets in browser code.
 
 Never include:
 
-* Database passwords
-* Private API keys
-* Email credentials
-* JWT signing secrets
-* Admin credentials
+- Database passwords
+- Private API keys
+- Email credentials
+- JWT signing secrets
+- Admin credentials
 
 Eventually:
 
@@ -1548,16 +1536,16 @@ The backend, not the browser, should make final reward decisions.
 
 Prefer:
 
-* Low-poly models
-* GLB
-* Small textures
-* Compressed textures
-* Limited dynamic lights
-* Simple shadows
-* Simple collisions
-* Small scene
-* Limited particles
-* Reused geometries/materials
+- Low-poly models
+- GLB
+- Small textures
+- Compressed textures
+- Limited dynamic lights
+- Simple shadows
+- Simple collisions
+- Small scene
+- Limited particles
+- Reused geometries/materials
 
 Avoid creating a separate complex mesh for every repeated crop if instancing can be used later.
 
@@ -1692,20 +1680,20 @@ Backend integration.
 
 Do not build:
 
-* Multiplayer
-* Large open world
-* Complex farming economy
-* Crafting
-* Large inventory
-* Character customization
-* Advanced NPC AI
-* Realistic crop growth simulation
-* Weather simulation
-* Complex physics
-* Production authentication
-* Real coupon infrastructure
-* Email infrastructure
-* Real payment integration
+- Multiplayer
+- Large open world
+- Complex farming economy
+- Crafting
+- Large inventory
+- Character customization
+- Advanced NPC AI
+- Realistic crop growth simulation
+- Weather simulation
+- Complex physics
+- Production authentication
+- Real coupon infrastructure
+- Email infrastructure
+- Real payment integration
 
 ---
 
@@ -1713,98 +1701,98 @@ Do not build:
 
 ## Scene
 
-* [ ] Browser loads
-* [ ] 3D scene loads
-* [ ] Terrain appears
-* [ ] Buildings appear
-* [ ] Crops appear
-* [ ] Water sources appear
+- [ ] Browser loads
+- [ ] 3D scene loads
+- [ ] Terrain appears
+- [ ] Buildings appear
+- [ ] Crops appear
+- [ ] Water sources appear
 
 ## Player
 
-* [ ] Player appears
-* [ ] Player has head
-* [ ] Player has body
-* [ ] Player has two arms
-* [ ] Player has two legs
-* [ ] Player moves
-* [ ] Player rotates toward movement
-* [ ] Arms move while running
-* [ ] Legs move while running
-* [ ] Character stops animation when idle
-* [ ] Player stays inside world boundaries
+- [ ] Player appears
+- [ ] Player has head
+- [ ] Player has body
+- [ ] Player has two arms
+- [ ] Player has two legs
+- [ ] Player moves
+- [ ] Player rotates toward movement
+- [ ] Arms move while running
+- [ ] Legs move while running
+- [ ] Character stops animation when idle
+- [ ] Player stays inside world boundaries
 
 ## Camera
 
-* [ ] Camera follows player
-* [ ] Camera does not clip badly
-* [ ] Nearby objectives remain readable
-* [ ] 2.5D appearance is preserved
+- [ ] Camera follows player
+- [ ] Camera does not clip badly
+- [ ] Nearby objectives remain readable
+- [ ] 2.5D appearance is preserved
 
 ## Crops
 
-* [ ] Maize works
-* [ ] Cassava works
-* [ ] Coffee works
-* [ ] Different crop types are visually recognizable
+- [ ] Maize works
+- [ ] Cassava works
+- [ ] Coffee works
+- [ ] Different crop types are visually recognizable
 
 ## Randomization
 
-* [ ] Seed locations change between runs
-* [ ] Water location changes between runs
-* [ ] Objects never spawn outside valid areas
-* [ ] Objects never spawn inside buildings
-* [ ] Required collectibles remain reachable
+- [ ] Seed locations change between runs
+- [ ] Water location changes between runs
+- [ ] Objects never spawn outside valid areas
+- [ ] Objects never spawn inside buildings
+- [ ] Required collectibles remain reachable
 
 ## Tasks
 
-* [ ] Task sequence changes between runs
-* [ ] Single-seed tasks work
-* [ ] Multiple-seed tasks work
-* [ ] Maize tasks work
-* [ ] Cassava tasks work
-* [ ] Coffee tasks work
-* [ ] Planting tasks work
-* [ ] Find-water tasks work
-* [ ] Water-once tasks work
-* [ ] Water-multiple-times tasks work
-* [ ] Harvest tasks work
-* [ ] Task progress works
+- [ ] Task sequence changes between runs
+- [ ] Single-seed tasks work
+- [ ] Multiple-seed tasks work
+- [ ] Maize tasks work
+- [ ] Cassava tasks work
+- [ ] Coffee tasks work
+- [ ] Planting tasks work
+- [ ] Find-water tasks work
+- [ ] Water-once tasks work
+- [ ] Water-multiple-times tasks work
+- [ ] Harvest tasks work
+- [ ] Task progress works
 
 ## HUD
 
-* [ ] Current task is clearly visible
-* [ ] Required amount is visible
-* [ ] Progress is visible
-* [ ] Timer is visible
-* [ ] Score is visible
-* [ ] Interaction prompt works
-* [ ] Task-complete feedback works
+- [ ] Current task is clearly visible
+- [ ] Required amount is visible
+- [ ] Progress is visible
+- [ ] Timer is visible
+- [ ] Score is visible
+- [ ] Interaction prompt works
+- [ ] Task-complete feedback works
 
 ## Game Flow
 
-* [ ] Challenge transitions work
-* [ ] Timer works
-* [ ] Timeout works
-* [ ] Game Over appears
-* [ ] Replay exists on Game Over
-* [ ] All tasks can be completed
-* [ ] Congratulations screen appears
-* [ ] Coupon message appears
-* [ ] Replay exists on completion
-* [ ] Replay creates a fresh game
-* [ ] Score resets
-* [ ] Tasks regenerate
-* [ ] Spawn positions regenerate
+- [ ] Challenge transitions work
+- [ ] Timer works
+- [ ] Timeout works
+- [ ] Game Over appears
+- [ ] Replay exists on Game Over
+- [ ] All tasks can be completed
+- [ ] Congratulations screen appears
+- [ ] Coupon message appears
+- [ ] Replay exists on completion
+- [ ] Replay creates a fresh game
+- [ ] Score resets
+- [ ] Tasks regenerate
+- [ ] Spawn positions regenerate
 
 ## General
 
-* [ ] Desktop browser works
-* [ ] Mobile browser is usable later
-* [ ] Full game takes approximately 1–2 minutes
-* [ ] Required objectives are discoverable
-* [ ] No challenge is impossible
-* [ ] Several consecutive runs feel different
+- [ ] Desktop browser works
+- [ ] Mobile browser is usable later
+- [ ] Full game takes approximately 1–2 minutes
+- [ ] Required objectives are discoverable
+- [ ] No challenge is impossible
+- [ ] Several consecutive runs feel different
 
 ---
 
@@ -1960,3 +1948,203 @@ When deciding between additional features and reliability, prioritize:
 ```
 
 Do not add additional systems until the full gameplay loop can be completed successfully several times in succession.
+
+---
+
+# Event Flow Correction Plan
+
+This section records the issues found in the current implementation and the required correction steps for the QR-based event flow:
+
+```text
+QR URL -> login/register -> character -> map -> lobby -> admin starts one instance
+-> every player receives game_start -> player completes -> server ranks all players
+-> top 10 receive one coupon email containing one vendor-scannable QR code
+```
+
+## Confirmed Current Issues
+
+### 1. Login loses the stored username
+
+The database has `players.display_name`, and `upsertPlayer()` returns the existing row, but the client does not use the login response correctly:
+
+- `src/game/Game.ts` calls `registerPlayer()` from `handleLogin()` instead of `loginPlayer()`.
+- `src/api/FarmQuestApi.ts` types the register response without `displayName` and creates the session using the locally supplied `name`, which is empty during email-only login.
+- The client then stores `Player` in local storage and sends `Player` to the lobby.
+- `server/src/storage/database.ts` returns an existing player without filling a blank `display_name` if a name is later supplied.
+
+Required correction:
+
+1. Use `loginPlayer(email)` for the login form. Login must send only `{ email }`.
+2. Keep register as `{ email, displayName }` and require a non-empty trimmed name for new registrations. The UI may label it as the only username field.
+3. Make both API response types include `{ playerId, sessionId, displayName }`.
+4. Build `PlayerSession.displayName` from the server response, never from the empty login form.
+5. Change `upsertPlayer()` so an existing row with a null/blank name is updated when a valid display name is supplied. Never overwrite a non-blank name during login.
+6. The `/api/players/me` response must also return the stored name. Use it to verify persistence independently of browser storage.
+7. Do not use local storage as the source of truth for identity. It may be a development fallback only; production login must fail visibly when the API is unavailable.
+
+Acceptance test:
+
+```text
+Register with email Alice@example.com and name Alice.
+Call GET /api/players/me with the returned sessionId.
+Start a new browser/private window, submit only alice@example.com to Login.
+Verify the response and lobby show Alice, not Player or an empty string.
+```
+
+### 2. The admin page can be served without its real controls
+
+`server/src/routes/adminPage.ts` resolves `../../src/admin/admin.html`. The actual file is under `server/src/admin/admin.html`, so the path is wrong in development. In the production server image, HTML files are not copied into the compiled `dist` tree either. The route therefore commonly serves its fallback HTML, which has no working dashboard controls.
+
+Required correction:
+
+1. Resolve the admin page from a deliberate runtime path, not a path that depends on TypeScript source layout.
+2. Either copy `server/src/admin/admin.html` into the server image and resolve that copied asset, or serve a checked-in static admin asset from a known `server/public/admin` directory.
+3. Add a health check that requests `/admin` and asserts that the response contains `id="start-btn"` and the dashboard script.
+4. Keep `/admin` and `/vendor` proxied to the backend; keep `/` serving the Vite client.
+
+### 3. Player WebSocket lobby registration is race-prone
+
+`src/game/Game.ts` waits a fixed 500 ms after `socket.connect()` before calling `joinLobby()`. `GameSocket` has no `onopen` callback or queued-send behavior. On a busy event network, the join is dropped, so the admin sees no player and the later start broadcast has nobody to receive it.
+
+Required correction:
+
+1. Add an `onOpen` callback or a `connect(sessionId): Promise<void>` to `GameSocket`.
+2. Send `join_lobby` only after the socket is open; remove the fixed timeout.
+3. Include and validate `playerId`, `sessionId`, `displayName`, `characterType`, and `mapId` in the join message.
+4. Show a visible connection/join error and allow reconnect before the player is considered ready.
+5. Prevent duplicate lobby entries when a phone reconnects by replacing the previous connection for the same session.
+
+### 4. Admin authentication and start errors are silent
+
+The dashboard sends `adminToken` in the message, but the WebSocket handshake is only `?admin=true`. The server silently returns when the token is wrong and does not send an error to the dashboard. This makes a rejected click indistinguishable from a broken button.
+
+Required correction:
+
+1. Send the token in the admin WebSocket URL, for example `?admin=true&adminToken=...`, over `wss` in production.
+2. Validate the token during the WebSocket upgrade/connection and reject invalid admin connections. Do not rely only on a message field.
+3. Use a constant-time token comparison where practical and never log the token.
+4. Keep message-level authorization as defense in depth, but return `{ type: 'error', message: 'Admin authorization failed.' }` for rejected commands.
+5. Validate `mapId`, require status `WAITING`, and require at least one joined player before starting. Return an error for every rejected start.
+6. Disable the Start button while a start request is pending and re-enable it only on `game_started` or an error.
+
+### 5. `game_start` does not tell clients which map to open
+
+The server generates the instance with a map argument but sends only `instanceId` and `tasks`. The client currently relies on its local selection, which is not authoritative and can differ from the admin-selected map.
+
+Required correction:
+
+1. Add `mapId` to the `game_start` server message.
+2. The client must call `startGame(tasks, mapId, instanceId)` using that message value.
+3. Rebuild/apply the selected `MapTheme` and `SpawnManager` from the server map ID before enabling movement.
+4. Reject unknown map IDs on both server and client.
+
+### 6. Lobby players are not registered in the event instance
+
+`GameCoordinator.startGame()` creates an in-memory UUID but does not create/update the corresponding `event_instances` database row. Players joining before the start have no instance row to register against, because `registerPlayerForInstance()` is only called when `currentInstanceId` already exists.
+
+Required correction:
+
+1. Create the event instance in persistent storage when the admin starts the game.
+2. Store the generated task sequence or a task-sequence version/hash with the instance for auditability.
+3. Register every lobby player against that instance immediately when it starts, using the database player ID and session ID.
+4. Set instance status to `IN_PLAY` and each registered player to `PLAYING`.
+5. On disconnect or timeout, update that instance player to `TIMEOUT` without removing the completion record of other players.
+
+### 7. Completion messages use the wrong connection key
+
+The lobby is keyed by WebSocket session/connection ID, while leaderboard entries use the database player ID. `finishGame()` calls `sendToClient(entry.playerId, ...)`, so completed players generally do not receive `game_finished`.
+
+Required correction:
+
+1. Keep separate fields for `databasePlayerId`, `sessionId`, and `connectionId`.
+2. Send client messages by `connectionId` or session ID, never by database player ID unless the socket map is explicitly keyed that way.
+3. Include `yourRank`, score, reward status, and the authoritative leaderboard in the player response.
+4. Test two simultaneous browser sessions to ensure each receives only its own rank.
+
+### 8. WebSocket completion does not issue or email rewards
+
+The old REST `/api/game/complete` path creates a default Free Coffee coupon, but the new WebSocket `game_complete` path only records a leaderboard entry. In the event flow, top-10 players therefore do not automatically receive coupons.
+
+Required correction:
+
+1. On a valid first completion, persist score, completion time, and status atomically.
+2. When the game finishes, rank by completion time, then score, and take the first 10.
+3. Generate exactly one coupon per top-10 player, linked to the player, session, instance, and rank. Make creation idempotent so reconnects cannot create duplicates.
+4. Assign the reward type from the rank and persist it in both `leaderboard` and `coupons`.
+5. Generate a QR data URI whose payload is only the coupon code, such as `FQ-ABC123`.
+6. Email the QR image and reward/location instructions to the stored player email. Mark the coupon sent only after the email provider succeeds.
+7. If email delivery fails, keep the coupon pending and expose a retryable server-side status; do not tell the player it was sent.
+8. Use one authoritative completion path for the event. Keep the old REST route only for backward compatibility and prevent it from issuing a second event coupon.
+
+### 9. Vendor redemption must be atomic
+
+Validation and redemption exist, but redemption must prevent two vendors from accepting the same code concurrently, and the response must identify the reward location/rank needed by the event operation.
+
+Required correction:
+
+1. Authenticate vendors with bcrypt hashes and expiring random tokens. Do not compare passwords with an ad hoc SHA-256 digest.
+2. Validate coupon status and update `REDEEMED` in one transaction using `WHERE id = ? AND status <> 'REDEEMED'`.
+3. Return a conflict when another redemption already won the race.
+4. Return coupon code, reward type, player display name, rank, instance date, and redemption status to the vendor UI.
+5. Record vendor ID, redeemed time, and location for auditability.
+
+## Build Blockers Before Runtime Testing
+
+The current client build does not complete, so browser testing is not yet a reliable signal:
+
+- `src/api/FarmQuestApi.ts` references `AccountNotFoundError`, but no class or import defines it. Define a small exported error class, or use a typed error code, and preserve the distinction between an account-not-found response and a network failure.
+- `src/world/World.ts` indexes `MAP_THEMES` through `any`, causing TypeScript error `TS7053`. Type the constructor input as `MapTheme | MapId` and narrow it before indexing.
+
+Fix these blockers before validating the event flow. Then run `npm run build:all` and only proceed to browser/WebSocket testing after both the client and server builds succeed.
+
+## Correct Event Contract
+
+Use one shared contract between client and server. The `game_start` message must be:
+
+```ts
+{
+  type: 'game_start';
+  instanceId: string;
+  mapId: 'rwanda' | 'sudan' | 'seychelles';
+  tasks: GameTask[];
+}
+```
+
+The player completion message must identify the current session, while the server must still derive the player identity from the authenticated socket:
+
+```ts
+{
+  type: "game_complete";
+  score: number;
+  completionTime: number;
+}
+```
+
+The server must never trust a client-supplied display name, rank, reward, player ID, or map when authorizing or ranking. Client values are for display/request context only; authenticated session and instance state are authoritative.
+
+## Docker and Domain Deployment Steps
+
+1. Set a strong production `ADMIN_TOKEN`; never use the development default.
+2. Set `DATABASE_URL=/app/data/farmquest.db` and retain the `db-data` volume across container restarts and image updates.
+3. Set `EMAIL_PROVIDER`, `EMAIL_FROM`, SMTP/API credentials, and the production `ALLOWED_ORIGINS` value. Do not place credentials in the client bundle.
+4. Make the backend listen on `0.0.0.0` and honor `process.env.PORT`; do not hard-code port `3001`.
+5. Put TLS termination at the domain reverse proxy and ensure `/ws` forwards `Upgrade` and `Connection: upgrade` headers with a long read timeout.
+6. Use `wss://` automatically when the page is HTTPS. The browser must not connect to `ws://` from an HTTPS event site.
+7. Make the server Docker build include the admin and vendor page assets, and run a container smoke test for `/api/health`, `/`, `/admin`, `/vendor`, and `/ws`.
+8. Build and start with `docker compose up --build`; verify the public domain, not only localhost.
+9. Confirm the QR landing URL, player login, admin start, completion, email QR, vendor validation, and one-time redemption end to end.
+
+## Required Verification Matrix
+
+Before the event, test at least:
+
+- New registration, database name persistence, email-only login, and `/api/players/me`.
+- Two phones joining with different names, characters, and maps.
+- Admin login with a valid token, invalid token, disconnected socket, and repeated Start clicks.
+- Start with all three maps and verify each phone receives the same tasks plus the authoritative map ID.
+- Player disconnect/reconnect before start and during play.
+- One, two, and ten completions; verify ranking tie-breaks and per-player result delivery.
+- Eleven completions; verify only the top 10 receive coupons.
+- Duplicate completion, duplicate email retry, and concurrent vendor redemption.
+- Container restart; verify players and coupons remain in the mounted SQLite volume.
+- HTTPS domain access from a phone; verify the WebSocket is `wss` and no mixed-content error occurs.

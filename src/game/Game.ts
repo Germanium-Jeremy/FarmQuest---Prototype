@@ -15,6 +15,7 @@ import { Seed } from '../world/Seed';
 import { SpawnManager } from '../world/SpawnManager';
 import { WaterSource } from '../world/WaterSource';
 import { World } from '../world/World';
+import { ChallengeGenerator } from './ChallengeGenerator';
 import { ChallengeManager } from './ChallengeManager';
 import { GameState } from './GameState';
 import { GameTask } from './GameTask';
@@ -234,8 +235,12 @@ export class Game {
             this.selectedCharacterType,
             this.selectedMapId,
           );
+        } else {
+          this.startLocalGame();
         }
       }, 500);
+    } else {
+      setTimeout(() => this.startLocalGame(), 500);
     }
     this.hud.showLobby(
       1,
@@ -243,6 +248,11 @@ export class Game {
       this.selectedCharacterType,
       this.selectedMapId,
     );
+  }
+
+  private startLocalGame(): void {
+    const tasks = new ChallengeGenerator().generate(3);
+    this.startGameFromServer(tasks as any);
   }
 
   private startGameFromServer(socketTasks: SocketGameTask[]): void {

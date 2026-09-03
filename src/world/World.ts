@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MAP_THEMES, MapTheme } from '../data/MapTheme';
+import { MAP_THEMES, MapTheme, MapId } from '../data/MapTheme';
 import { CollisionManager } from './CollisionManager';
 
 export class World {
@@ -9,7 +9,7 @@ export class World {
   private theme: MapTheme;
 
   constructor(themeInput: MapTheme | string = MAP_THEMES.rwanda) {
-    this.theme = typeof themeInput === 'string' ? MAP_THEMES[themeInput as any] : themeInput;
+    this.theme = typeof themeInput === 'string' ? MAP_THEMES[themeInput as MapId] : themeInput;
     this.group = new THREE.Group();
     this.collision = new CollisionManager(this.group);
     this.buildTerrain();

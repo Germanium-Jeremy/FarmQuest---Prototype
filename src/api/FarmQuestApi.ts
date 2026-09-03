@@ -27,6 +27,14 @@ export interface GameInstanceResponse {
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
 const ACCOUNTS_KEY = 'farmquest.accounts';
 
+export class AccountNotFoundError extends Error {
+  constructor() {
+    super('Account not found');
+    this.name = 'AccountNotFoundError';
+  }
+}
+
+
 interface StoredAccount {
   email: string;
   displayName: string;
