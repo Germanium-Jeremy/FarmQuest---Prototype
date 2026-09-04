@@ -4,16 +4,18 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:server": "tsx watch server/src/server.ts",
-    "build": "tsc && vite build",
-    "build:server": "tsc -p server/tsconfig.json",
-    "build:all": "npm run build && npm run build:server",
+    "dev": "node init && vite",
+    "dev:server": "node init && tsx watch server/src/server.ts",
+    "build": "node init && tsc && vite build",
+    "build:server": "node init && tsc -p server/tsconfig.json",
+    "build:all": "node init && npm run build && npm run build:server",
     "preview": "vite preview"
   },
   "dependencies": {
     "cors": "^2.8.6",
+    "dotenv": "^8.2.0",
     "express": "^5.2.1",
+    "node-fetch": "^3.3.2",
     "nodemailer": "^9.1.0",
     "three": "^0.170.0",
     "zod": "^4.5.4"
