@@ -52,7 +52,7 @@ db.exec(`
     display_order: number;
   }> = [
     {
-      company_name: "Farm Quest",
+      company_name: "FarmQuest",
       contacts: "nkundabagenzijeremy@gmail.com",
       url: "https://afs.ubuhanzi.com",
       display_order: 0,
@@ -73,6 +73,41 @@ db.exec(`
       company_name: "Cafe D'amour",
       contacts: "hello@cafedamour.com",
       display_order: 3,
+    },
+    {
+      company_name: "Cow Horns Rwanda",
+      contacts: "+250785219489",
+      url: "https://www.cowhornsrwanda.com",
+      display_order: 4,
+    },
+    {
+      company_name: "Metta Dem",
+      contacts: "mballowedrisa0@gmail.com",
+      display_order: 5,
+    },
+    {
+      company_name: "IFGreen Industries & Investment Ltd",
+      contacts: "iokonkwo@ifgreenindustries.com",
+      url: "https://www.ifgreenindustries.com",
+      display_order: 6,
+    },
+    {
+      company_name: "Chocoluv",
+      contacts: "hello@chocoluvghana.com",
+      url: "https://chocoluvghana.com",
+      display_order: 7,
+    },
+    {
+      company_name: "One Acre Fund",
+      contacts: "mariechantal.umuhoza@oneacrefund.org",
+      url: "https://oneacrefund.org",
+      display_order: 8,
+    },
+    {
+      company_name: "Chocoluv",
+      contacts: "hello@chocoluvghana.com",
+      url: "https://chocoluvghana.com",
+      display_order: 7,
     },
   ];
   const existing = db.prepare('SELECT company_name FROM collaborators').all() as Array<{ company_name: string }>;
