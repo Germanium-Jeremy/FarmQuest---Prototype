@@ -42,9 +42,8 @@ db.exec(`
   );
 `);
 
-// Seed default collaborators if table is empty
-const collaboratorCount = db.prepare('SELECT COUNT(*) as cnt FROM collaborators').get() as { cnt: number };
-if (collaboratorCount.cnt === 0) {
+// Seed default collaborators (skip any that already exist by company_name)
+{
   const now = new Date().toISOString();
   const seeds: Array<{
     company_name: string;
@@ -66,7 +65,7 @@ if (collaboratorCount.cnt === 0) {
     },
     {
       company_name: "AfricaInColors",
-      contacts: "contact@africaincolors.com",
+      contacts: "No contacts provided",
       url: "https://africaincolors.com",
       display_order: 2,
     },
@@ -76,9 +75,13 @@ if (collaboratorCount.cnt === 0) {
       display_order: 3,
     },
   ];
+  const existing = db.prepare('SELECT company_name FROM collaborators').all() as Array<{ company_name: string }>;
+  const existingNames = new Set(existing.map(e => e.company_name));
   const insert = db.prepare('INSERT INTO collaborators (id, company_name, contacts, logo_path, logo_cid, url, display_order, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)');
   for (const s of seeds) {
-    insert.run(randomUUID(), s.company_name, s.contacts, null, null, s.url ?? null, s.display_order, now, now);
+    if (!existingNames.has(s.company_name)) {
+      insert.run(randomUUID(), s.company_name, s.contacts, null, null, s.url ?? null, s.display_order, now, now);
+    }
   }
 }
 
